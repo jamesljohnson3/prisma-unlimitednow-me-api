@@ -11,7 +11,7 @@ export default async function (req: VercelRequest, res: VercelResponse) {
     const prisma = new PrismaClient()
 
     console.log(
-      '[user] Incoming request:',
+      '[account] Incoming request:',
       JSON.stringify(
         {
           method: req.method,
@@ -26,28 +26,28 @@ export default async function (req: VercelRequest, res: VercelResponse) {
     switch (req.method) {
       case 'GET':
         return res.json(
-          await prisma.user.findMany({
+          await prisma.workspace.findMany({
             where: { id },
           }),
         )
       case 'POST':
         return res.json(
-          await prisma.user.create({
-            data: req.body as Prisma.UserCreateInput,
+          await prisma.workspace.create({
+            data: req.body as Prisma.AccountCreateInput,
           }),
         )
       case 'PUT':
         return res.json(
-          await prisma.user.update({
+          await prisma.workspace.update({
             where: {
               id,
             },
-            data: req.body as Prisma.UserUpdateInput,
+            data: req.body as Prisma.AccountUpdateInput,
           }),
         )
       case 'DELETE':
         return res.json(
-          await prisma.user.delete({
+          await prisma.workspace.delete({
             where: { id },
           }),
         )
@@ -57,7 +57,7 @@ export default async function (req: VercelRequest, res: VercelResponse) {
       .status(400)
       .send({ message: `Unexpected request method: ${req.method}` })
   } catch (e: any) {
-    console.error('[user] Error responding:', e)
+    console.error('[account] Error responding:', e)
     return res.status(500).json({ message: e?.message || e })
   }
 }
