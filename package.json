@@ -18,8 +18,8 @@
     "seed": "ts-node ./prisma/seed.ts"
   },
   "scripts": {
-    "init": "prisma db push && prisma db seed",
+    "init": "prisma db push",
     "dev": "ts-node ./sandbox.ts",
-    "build": "prisma generate --data-proxy"
+    "build": "prisma generate"
   }
 }
