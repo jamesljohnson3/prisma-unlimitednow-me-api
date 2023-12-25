@@ -7,7 +7,7 @@ Generic Prisma schema example for a SaaS that has a referral system.
 
 (Generated via https://github.com/notiz-dev/prisma-dbml-generator + https://dbdiagram.io)
 jn
-### Setting this project up locally
+### Setting this project up locaxlly
 
 Once you clone your repo, you'll want to set up this repo for local development. In order to start using Prisma locally, you need to make Prisma aware of your database. The most portable way to do this is to use environment variables via a `.env` file.
 
