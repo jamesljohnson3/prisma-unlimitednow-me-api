@@ -138,7 +138,6 @@ model User {
   sessions         Session[]
   membership       Member[]         @relation("membership")
   invitedMembers   Member[]         @relation("inviter")
-  createdWorkspace Workspace[]
   customerPayment  CustomerPayment?
   domains          Domain[]
 
@@ -167,7 +166,6 @@ model Workspace {
   deletedAt     DateTime?
   updatedAt     DateTime? @updatedAt
 
-  creator User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   members Member[]
   domains Domain[]
 
