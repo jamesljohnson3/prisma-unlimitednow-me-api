@@ -26,9 +26,13 @@ export default async function (req: VercelRequest, res: VercelResponse) {
   
     switch (req.method) {
       case 'GET':
+        if (id === undefined) {
+          return res.status(400).json({ message: 'Missing required parameter: id' });
+        }
+
         return res.json(
           await prisma.form.findMany({
-            where: { id: parseInt(id) }, // Convert id to integer
+            where: { id: parseInt(id) },
           }),
         );
       case 'POST':
