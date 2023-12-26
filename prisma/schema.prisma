@@ -13,6 +13,7 @@ datasource db {
 model Form {
   id          Int      @id @default(autoincrement())
   userId      String
+    thumbnail      String @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
   createdAt   DateTime @default(now())
   published   Boolean  @default(false)
   name        String
