@@ -42,10 +42,15 @@ export default async function (req: VercelRequest, res: VercelResponse) {
           }),
         )
       case 'PUT':
+        if (id === undefined) {
+          // Handle the case where id is undefined
+          return res.status(400).json({ error: 'Bad Request. Missing id parameter.' });
+        }
+
         return res.json(
           await prisma.form.update({
             where: {
-              id,
+              id: parseInt(id, 10) || 0, // Convert id to integer or use a default value (e.g., 0)
             },
             data: req.body as Prisma.AccountUpdateInput,
           }),
