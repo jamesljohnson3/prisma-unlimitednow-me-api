@@ -23,13 +23,14 @@ export default async function (req: VercelRequest, res: VercelResponse) {
       ),
     )
 
+  
     switch (req.method) {
       case 'GET':
         return res.json(
           await prisma.form.findMany({
-            where: { id },
+            where: { id: parseInt(id) }, // Convert id to integer
           }),
-        )
+        );
       case 'POST':
         return res.json(
           await prisma.form.create({
