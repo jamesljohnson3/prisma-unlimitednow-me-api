@@ -32,7 +32,7 @@ export default async function (req: VercelRequest, res: VercelResponse) {
 
         return res.json(
           await prisma.store.findMany({
-            where: { id: parseInt(id) },
+            where: { id: id },
           }),
         );
       case 'POST':
