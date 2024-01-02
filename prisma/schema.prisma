@@ -119,6 +119,10 @@ model User {
     password String?
     name String?
 
+  Product Product[]
+  Cart Cart[]
+  Review Review[]
+    Purchased Purchased[]
     links Link[]
     projects ProjectUsers[]
     blueprints Blueprint[]
@@ -139,9 +143,11 @@ model User {
     invitedMembers Member[] @relation("inviter")
     customerPayment CustomerPayment?
     domains Domain[]
+  ActivateToken   ActivateToken[]
 
     @@unique([userCode, email])
     @@map("users")
+    
 }
 
 model CustomerPayment {
@@ -324,29 +330,41 @@ model Category {
   @@index([billboardId])
 }
 
-model Product {
-  id          String    @id @default(uuid())
-  storeId     String    // Foreign Key to Store
-  store       Store     @relation("StoreToProduct", fields: [storeId], references: [id])
-  categoryId  String    // Foreign Key to Category
-  category    Category  @relation("CategoryToProduct", fields: [categoryId], references: [id])
-  name        String
-  price       Decimal
-  isFeatured  Boolean   @default(false)
-  isArchived  Boolean   @default(false)
-  sizeId      String    // Foreign Key to Size
-  size        Size      @relation(fields: [sizeId], references: [id])
-  colorId     String    // Foreign Key to Color
-  color       Color     @relation(fields: [colorId], references: [id])
-  images      Image[]   // Relation to Image model
-  orderItems  OrderItem[]   // Relation to Order model
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
 
+model Product {
+  id          String      @id @default(uuid())
+  storeId     String      // Foreign Key to Store
+  store       Store       @relation("StoreToProduct", fields: [storeId], references: [id])
+  categoryId  String      // Foreign Key to Category
+  category    Category    @relation("CategoryToProduct", fields: [categoryId], references: [id])
+  name        String
+  price       Int
+  userId      String
+  title       String
+  style       String
+  description String 
+  imagesUrl   String      @default("")
+  inventory   String
+  isFeatured  Boolean     @default(false)
+  isArchived  Boolean     @default(false)
+  sizeId      String      // Foreign Key to Size
+  size        Size        @relation(fields: [sizeId], references: [id])
+  colorId     String      // Foreign Key to Color
+  color       Color       @relation(fields: [colorId], references: [id])
+  User        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  images      Image[]     // Relation to Image model
+  orderItems  OrderItem[] // Relation to Order model
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  Cart        Cart[]
+  Review      Review[]
+  Purchased   Purchased[]
   @@index([storeId])
   @@index([categoryId])
   @@index([sizeId])
   @@index([colorId])
+  @@index([userId])
 }
 
 model Order {
@@ -402,10 +420,15 @@ model Color {
 }
 
 model Image {
-  id          String   @id @default(uuid())
+
+  id      String  @id @default(dbgenerated("concat('image_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
+  url     String
+  imageUrl    String  @default("")
+  description String?
+  postId      String
+  Post        Post @relation(fields: [postId], references: [id], onDelete: Cascade)  
   productId   String   // Foreign Key to Product
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  url         String   // URL of the image
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -434,19 +457,28 @@ model Follows {
 }
 
 model Post {
-    id        String      @id @default(cuid())
+  id      String  @id @default(dbgenerated("concat('post_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
     createdAt DateTime    @default(now())
     updatedAt DateTime    @updatedAt
     caption   String?
     fileUrl   String      @unique
+      content  String?
+  type    String  @default("IMAGE")
+  tags    String[]
     likes     Like[]
     savedBy   SavedPost[]
-    comments  Comment[]
+    
+  authorId    String @default("1")
+  comments  Comment[]
+    
+  Image         Image[]
+  Video         Video[]
     user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
     userId    String      @map("user_id")
 
     @@index([userId])
 }
+
 
 model SavedPost {
     id        String   @id @default(cuid())
@@ -519,6 +551,8 @@ model Link {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt()
     zenstack_guard Boolean @default(true)
+
+        @@unique([key])
     @@index([domain, archived, expiresAt, createdAt(sort: Desc)])
     @@index([domain, archived, expiresAt, clicks(sort: Desc)])
     @@index([domain, archived, expiresAt, userId, createdAt(sort: Desc)])
@@ -573,4 +607,60 @@ model Blueprint {
     user User @relation(fields: [userId], references: [id])
     userId String
     zenstack_guard Boolean @default(true)
+}
+model Cart {
+  id        Int     @id @default(autoincrement())
+  productId  String
+  Product Product @relation(fields: [productId],references: [id],onDelete: Cascade)
+  userId String
+  User User @relation(fields: [userId],references: [id],onDelete: Cascade)
+  @@index([productId])
+  @@index([userId])
+}
+model Review {
+  id        Int     @id @default(autoincrement())
+  rating Int
+  commentry String
+  productId String
+  Product Product @relation(fields: [productId],references: [id],onDelete: Cascade)
+  userId String
+  User User @relation(fields: [userId],references: [id],onDelete: Cascade)
+  @@index([productId])
+  @@index([userId])
+}
+model Purchased {
+    id        Int     @id @default(autoincrement())
+    isPaid    Boolean
+    productId String
+    Product Product @relation(fields: [productId],references: [id],onDelete: Cascade)
+    userId String
+    User User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    @@index([productId])
+    @@index([userId])
+}
+
+model ActivateToken {
+  id  Int  @id @default(autoincrement())
+  token String @unique
+  activatedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId    String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum TypePost {
+  IMAGE
+  VIDEO
+  POST
+}
+
+
+
+model Video {
+  id      String  @id @default(dbgenerated("concat('video_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
+  url     String
+  description String?
+  postId      String
+  Post        Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
