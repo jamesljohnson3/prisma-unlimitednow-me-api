@@ -27,13 +27,13 @@ export default async function (req: VercelRequest, res: VercelResponse) {
     switch (req.method) {
       case 'GET':
         return res.json(
-          await prisma.products.findMany({
+          await prisma.product.findMany({
             where: { id },
           }),
         )
       case 'POST':
         return res.json(
-          await prisma.products.create({
+          await prisma.product.create({
             data: req.body as Prisma.AccountCreateInput,
           }),
         )
@@ -44,7 +44,7 @@ export default async function (req: VercelRequest, res: VercelResponse) {
         }
 
         return res.json(
-          await prisma.products.update({
+          await prisma.product.update({
             where: {
               id: parseInt(id, 10) || 0, // Convert id to integer or use a default value (e.g., 0)
             },
@@ -53,7 +53,7 @@ export default async function (req: VercelRequest, res: VercelResponse) {
         )
       case 'DELETE':
         return res.json(
-          await prisma.products.delete({
+          await prisma.product.delete({
             where: { id },
           }),
         )
