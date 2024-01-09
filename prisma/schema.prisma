@@ -293,6 +293,7 @@ model Store {
   id              String    @id @default(uuid())
   name            String
   userId          String
+  primaryprompt   String  @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
   billboards      Billboard[] @relation("StoreToBillboard")
   categories      Category[] @relation("StoreToCategory")
   products        Product[]  @relation("StoreToProduct")
