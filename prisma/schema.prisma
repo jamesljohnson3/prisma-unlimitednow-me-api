@@ -9,6 +9,7 @@ datasource db {
  provider          = "postgresql"
   url               = env("DATABASE_URL")
 }
+previewFeatures = ["extendedIndexes"]
 
 enum SpaceUserRole {
     USER
