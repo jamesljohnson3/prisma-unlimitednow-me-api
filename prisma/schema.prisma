@@ -3,13 +3,14 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["extendedIndexes"]
+
 }
 
 datasource db {
  provider          = "postgresql"
   url               = env("DATABASE_URL")
 }
-previewFeatures = ["extendedIndexes"]
 
 enum SpaceUserRole {
     USER
