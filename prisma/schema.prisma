@@ -313,6 +313,8 @@ model Store {
   id              String    @id @default(uuid())
   name            String
   userId          String
+    quickLink1   String   @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
+
   primaryprompt   String   @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
   billboards      Billboard[] @relation("StoreToBillboard")
   categories      Category[] @relation("StoreToCategory")
