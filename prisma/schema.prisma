@@ -35,6 +35,153 @@ enum TeamRole {
     OWNER
 }
 
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now()) @map(name: "created_at")
+  updatedAt         DateTime @default(now()) @map(name: "updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map(name: "accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map(name: "sessions")
+}
+
+model User {
+   id String @id() @default(uuid())
+
+    
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+      mylikes           Post[]  @relation("PostLikes")
+  profileImageURL String?
+
+    username      String?     @unique
+    bio           String?
+    website       String?
+    gender        String?
+    email         String?     @unique
+emailVerified                 DateTime?   @map("email_verified")
+  emailVerificationToken        String?     @unique @map("email_verification_token")
+  passwordHash                  String?     @map("password_hash")
+  resetPasswordToken            String?     @unique @map("reset_password_token")
+  resetPasswordTokenExpiry      DateTime?   @map("reset_password_token_expiery")
+      image         String?
+    password String?
+    name String?
+surname                       String?
+  Product Product[]
+  Cart Cart[]
+  Review Review[]
+    Purchased Purchased[]
+    links Link[]
+    projects ProjectUsers[]
+    blueprints Blueprint[]
+    spaces SpaceUser[]
+    lists List[]
+    todos Todo[]
+      sites         Site[]
+    workspaces Workspace[]
+    userCode String @unique() @default(cuid())
+    posts         Post[]
+    saved         SavedPost[]
+    likes         Like[]
+    comments      Comment[]
+    followedBy    Follows[]   @relation("following")
+    following     Follows[]   @relation("follower")
+    accounts      Account[]
+    sessions      Session[]
+    membership Member[] @relation("membership")
+    invitedMembers Member[] @relation("inviter")
+    customerPayment CustomerPayment?
+    domains Domain[]
+  ActivateToken   ActivateToken[]
+  stripeCustomerId       String?   @unique @map(name: "stripe_customer_id")
+  stripeSubscriptionId   String?   @unique @map(name: "stripe_subscription_id")
+  stripePriceId          String?   @map(name: "stripe_price_id")
+  stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
+    @@unique([userCode, email])
+    @@map("users")
+    
+}
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map(name: "verification_tokens")
+}
+
+
+
+
+model ActivateToken {
+  id  Int  @id @default(autoincrement())
+  token String @unique
+  activatedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId    String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NewsletterSubscriber {
+  id                            String      @id @default(cuid())
+  email                         String      @unique 
+  createdAt                     DateTime    @default(now()) @map("created_at")
+
+  @@map("newsletter_subscribers")
+}
+
+model Movie {
+  id            Int         @id
+  imageString   String
+  title         String
+  age           Int
+  duration      Float
+  overview      String
+  release       Int
+  videoSource   String
+  category      String
+  youtubeString String
+  WatchLists    WatchList[]
+
+  createdAt DateTime @default(now())
+}
+
+model WatchList {
+  id     String @id @default(uuid())
+  userId String
+
+  Movie   Movie? @relation(fields: [movieId], references: [id])
+  movieId Int?
+}
+
+
 model Form {
     id Int @id() @default(autoincrement())
     userId String
@@ -104,54 +251,8 @@ model SpaceUser {
 /// @@allow('create', true)
 /// @@allow('read', spaces ? [space.members ? [user == auth()]])
 /// @@allow('all', auth() == this)
-model User {
-    id String @id() @default(uuid())
 
-    
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
-    
-    username      String?     @unique
-    bio           String?
-    website       String?
-    gender        String?
-    email         String?     @unique
-    emailVerified DateTime?
-    image         String?
-    password String?
-    name String?
 
-  Product Product[]
-  Cart Cart[]
-  Review Review[]
-    Purchased Purchased[]
-    links Link[]
-    projects ProjectUsers[]
-    blueprints Blueprint[]
-    spaces SpaceUser[]
-    lists List[]
-    todos Todo[]
-      sites         Site[]
-    workspaces Workspace[]
-    userCode String @unique() @default(cuid())
-    posts         Post[]
-    saved         SavedPost[]
-    likes         Like[]
-    comments      Comment[]
-    followedBy    Follows[]   @relation("following")
-    following     Follows[]   @relation("follower")
-    accounts      Account[]
-    sessions      Session[]
-    membership Member[] @relation("membership")
-    invitedMembers Member[] @relation("inviter")
-    customerPayment CustomerPayment?
-    domains Domain[]
-  ActivateToken   ActivateToken[]
-
-    @@unique([userCode, email])
-    @@map("users")
-    
-}
 model Site {
   id            String   @id @default(cuid())
   name          String?
@@ -221,15 +322,6 @@ model Member {
     @@map("members")
 }
 
-model Session {
-    id String @id() @default(cuid())
-    sessionToken String @unique()
-    userId String
-    expires DateTime
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@map("sessions")
-}
 
 model Workspace {
     id String @id() @default(cuid())
@@ -267,7 +359,6 @@ model List {
     /// @length(1, 100)
     title String
     private Boolean @default(false)
-    todos Todo[]
 }
 
 /// @@deny('all', auth() == null)
@@ -278,43 +369,24 @@ model Todo {
     id String @id() @default(uuid())
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt()
+      text      String
+  completed Boolean
+  userId    String
+
     owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
     ownerId String
-    list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+    
     listId String
     /// @length(1, 100)
     title String
     completedAt DateTime?
 }
 
-model Account {
-    id                 String  @id @default(cuid())
-    userId             String  @map("user_id")
-    type               String
-    provider           String
-    providerAccountId  String  @map("provider_account_id")
-    refresh_token      String? @db.Text
-    access_token       String? @db.Text
-    expires_at         Int?
-    token_type         String?
-    scope              String?
-    id_token           String? @db.Text
-    session_state      String?
-    oauth_token_secret String?
-    oauth_token        String?
-
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([provider, providerAccountId])
-    @@index([userId])
-}
-
 model Store {
   id              String    @id @default(uuid())
   name            String
   userId          String
-    quickLink1   String   @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
-
+  quickLink1   String   @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
   primaryprompt   String   @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
   billboards      Billboard[] @relation("StoreToBillboard")
   categories      Category[] @relation("StoreToCategory")
@@ -459,15 +531,12 @@ model Image {
   @@index([productId])
 }
 
-model VerificationToken {
-    id         Int      @id @default(autoincrement())
-    identifier String
-    token      String   @unique
-    expires    DateTime
-
-    @@unique([identifier, token])
+model Followers {
+  // who the user follows
+  followingId String @unique
+  //who follows the user
+  followerId  String
 }
-
 
 model Follows {
     follower    User   @relation("follower", fields: [followerId], references: [id])
@@ -490,19 +559,22 @@ model Post {
   slug          String   @default(cuid())
   image         String?  @default("https://public.blob.vercel-storage.com/eEZHAoPTOBSYGBE3/hxfcV5V-eInX3jbVUhjAt1suB7zB88uGd1j20b.png") @db.Text
   imageBlurhash String?  @default("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAhCAYAAACbffiEAAAACXBIWXMAABYlAAAWJQFJUiTwAAABfUlEQVR4nN3XyZLDIAwE0Pz/v3q3r55JDlSBplsIEI49h76k4opexCK/juP4eXjOT149f2Tf9ySPgcjCc7kdpBTgDPKByKK2bTPFEdMO0RDrusJ0wLRBGCIuelmWJAjkgPGDSIQEMBDCfA2CEPM80+Qwl0JkNxBimiaYGOTUlXYI60YoehzHJDEm7kxjV3whOQTD3AaCuhGKHoYhyb+CBMwjIAFz647kTqyapdV4enGINuDJMSScPmijSwjCaHeLcT77C7EC0C1ugaCTi2HYfAZANgj6Z9A8xY5eiYghDMNQBJNCWhASot0jGsSCUiHWZcSGQjaWWCDaGMOWnsCcn2QhVkRuxqqNxMSdUSElCDbp1hbNOsa6Ugxh7xXauF4DyM1m5BLtCylBXgaxvPXVwEoOBjeIFVODtW74oj1yBQah3E8tyz3SkpolKS9Geo9YMD1QJR1Go4oJkgO1pgbNZq0AOUPChyjvh7vlXaQa+X1UXwKxgHokB2XPxbX+AnijwIU4ahazAAAAAElFTkSuQmCC") @db.Text
-  
+    mylikes        User[]   @relation("PostLikes")
+thumbnailURL String?
+  body         String   @db.VarChar(140)
+   images    Image[]
+
   type    String  @default("IMAGE")
   tags    String[]
     likes     Like[]
     savedBy   SavedPost[]
-    
-  authorId    String @default("1")
+   author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId     String @default("1")
   comments  Comment[]
       site          Site?    @relation(fields: [siteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   siteId        String?
-  Image         Image[]
   Video         Video[]
-    user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user      String        
     userId    String      @map("user_id")
 
     @@index([userId])
@@ -545,6 +617,7 @@ model Comment {
     post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
     postId    String
     userId    String   @map("user_id")
+  text      String   @db.Text
 
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -668,15 +741,7 @@ model Purchased {
     @@index([userId])
 }
 
-model ActivateToken {
-  id  Int  @id @default(autoincrement())
-  token String @unique
-  activatedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  userId    String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+
 
 enum TypePost {
   IMAGE
