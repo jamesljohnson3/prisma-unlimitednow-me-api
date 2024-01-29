@@ -803,3 +803,17 @@ model wishlist {
   inShowcase          Boolean  @default(false)
   isPasswordProtected Boolean  @default(false)
 }
+
+
+model Campaigns {
+  id        String      @id @default(cuid())
+    Url String @unique()
+    subdomain String @unique()
+    createdAt DateTime @default(now())
+    createdBy String
+    siteName String
+    customCss String?
+    customHead String?
+    inShowcase Boolean? @default(false)
+    zenstack_guard Boolean @default(true)
+}
