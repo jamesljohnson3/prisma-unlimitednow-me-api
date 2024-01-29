@@ -774,3 +774,32 @@ model UserSubscription {
   stripePriceId          String?   @map(name: "stripe_price_id")
   stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
 }
+
+
+model orders {
+  id        String      @id @default(cuid())
+  repoUrl    String   @unique @db.VarChar
+  subdomain  String   @unique @db.VarChar
+  createdAt  DateTime @default(now()) @db.Timestamp(6)
+  createdBy  String   @db.VarChar
+  siteName   String   @db.VarChar
+  customCss  String?  @db.VarChar
+  customHead String?  @db.VarChar
+  inShowcase Boolean? @default(false)
+}
+
+
+model wishlist {
+  id        String      @id @default(cuid())
+  notionPageUrl       String   @unique @db.VarChar
+  siteName            String   @db.VarChar
+  siteDesc            String   @db.VarChar
+  customCss           String?  @db.VarChar
+  createdAt           DateTime @default(now()) @db.Timestamp(6)
+  createdBy           String   @db.VarChar
+  subdomain           String   @unique @db.VarChar
+  ogImageUrl          String?  @db.VarChar
+  customHead          String?  @db.VarChar
+  inShowcase          Boolean  @default(false)
+  isPasswordProtected Boolean  @default(false)
+}
