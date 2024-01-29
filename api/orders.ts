@@ -25,12 +25,14 @@ export default async function (req: VercelRequest, res: VercelResponse) {
 
   
     switch (req.method) {
-      case 'GET':
-        return res.json(
-          await prisma.orders.findMany({
-            where: { id },
-          }),
-        )
+        case 'GET':
+          return res.json(
+            await prisma.orders.findMany({
+              where: {
+                createdBy: id, // Use id as createdBy value
+              },
+            }),
+          )
       case 'POST':
         return res.json(
           await prisma.orders.create({
