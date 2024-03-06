@@ -11,7 +11,10 @@ datasource db {
  provider          = "postgresql"
   url               = env("DATABASE_URL")
 }
-
+enum VoteType {
+  UP
+  DOWN
+}
 enum SpaceUserRole {
     USER
     ADMIN
@@ -74,6 +77,20 @@ enum Icon {
   clipboardIcon
 }
 
+model Task{
+  id          String    @id @default(cuid()) @map("_id")
+  title       String
+  description String?
+  date        String
+  isCompleted Boolean   @default(false)
+  isImportant Boolean   @default(false)
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  userId      String    
+}
+
+
 model User {
   id           String         @id @default(uuid())
   name         String
@@ -84,12 +101,16 @@ model User {
   role         Role           @default(SUBACCOUNT_USER)
   agencyId     String?
 
-
+  createdSubreddits Subreddit[]    @relation("CreatedBy")
+  subscriptions     Subscription[]
+  votes             Vote[]
     
+  apiKey   ApiKey[]
+  apiKeyId String?
       mylikes           Post[]  @relation("PostLikes")
   profileImageURL String?
 
-    username      String?     @unique
+    username      String?     @unique @default(uuid())
     bio           String?
     website       String?
     gender        String?
@@ -115,6 +136,10 @@ surname                       String?
     workspaces Workspace[]
     userCode String @unique() @default(cuid())
     posts         Post[]
+
+
+
+  CommentVote CommentVote[]
     saved         SavedPost[]
     likes         Like[]
     comments      Comment[]
@@ -141,6 +166,33 @@ surname                       String?
   @@index([agencyId])
 }
 
+model ApiKey {
+  id      String  @id @default(cuid())
+  key     String  @unique
+  enabled Boolean @default(true)
+  User    User    @relation(fields: [userId], references: [id])
+  userId  String
+
+  requests ApiRequest[]
+
+  @@unique([userId, key, enabled])
+}
+
+model ApiRequest {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  method    String
+  path      String
+  status    Int
+  duration  Int
+
+  usedApiKey String
+
+  ApiKey   ApiKey @relation(fields: [apiKeyId], references: [id])
+  apiKeyId String
+
+  @@index([apiKeyId, timestamp])
+}
 model Permissions {
   id           String     @id @default(uuid())
   email        String
@@ -471,8 +523,8 @@ model Notification {
 }
 
 enum Plan {
-  price_1OYxkqFj9oKEERu1NbKUxXxN
-  price_1OYxkqFj9oKEERu1KfJGWxgN
+  price_1NFR2MBrSm8eSKa6Fb4erlI5
+ price_1MsGUCBrSm8eSKa62vIQc5WC
 }
 
 model Subscription {
@@ -482,16 +534,24 @@ model Subscription {
   plan      Plan?
   price     String?
   active    Boolean  @default(false)
-
+ user        User      @relation(fields: [userId], references: [id])
+  userId      String
   priceId              String
   customerId           String
   currentPeriodEndDate DateTime
   subscritiptionId     String   @unique
 
-  agencyId String? @unique
+  agencyId String? @unique @default(uuid())
   Agency   Agency? @relation(fields: [agencyId], references: [id])
 
-  @@index([customerId])
+
+  subreddit   Subreddit @relation(fields: [subredditId], references: [id])
+  subredditId String
+
+
+    @@index([customerId])
+
+  @@index([subredditId])
 }
 
 model AddOns {
@@ -974,6 +1034,9 @@ model Post {
     caption   String?
     fileUrl   String      @unique
       content  String?
+       data     Json?
+         title       String? 
+
   slug          String   @default(cuid())
   image         String?  @default("https://public.blob.vercel-storage.com/eEZHAoPTOBSYGBE3/hxfcV5V-eInX3jbVUhjAt1suB7zB88uGd1j20b.png") @db.Text
   imageBlurhash String?  @default("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAhCAYAAACbffiEAAAACXBIWXMAABYlAAAWJQFJUiTwAAABfUlEQVR4nN3XyZLDIAwE0Pz/v3q3r55JDlSBplsIEI49h76k4opexCK/juP4eXjOT149f2Tf9ySPgcjCc7kdpBTgDPKByKK2bTPFEdMO0RDrusJ0wLRBGCIuelmWJAjkgPGDSIQEMBDCfA2CEPM80+Qwl0JkNxBimiaYGOTUlXYI60YoehzHJDEm7kxjV3whOQTD3AaCuhGKHoYhyb+CBMwjIAFz647kTqyapdV4enGINuDJMSScPmijSwjCaHeLcT77C7EC0C1ugaCTi2HYfAZANgj6Z9A8xY5eiYghDMNQBJNCWhASot0jGsSCUiHWZcSGQjaWWCDaGMOWnsCcn2QhVkRuxqqNxMSdUSElCDbp1hbNOsa6Ugxh7xXauF4DyM1m5BLtCylBXgaxvPXVwEoOBjeIFVODtW74oj1yBQah3E8tyz3SkpolKS9Geo9YMD1QJR1Go4oJkgO1pgbNZq0AOUPChyjvh7vlXaQa+X1UXwKxgHokB2XPxbX+AnijwIU4ahazAAAAAElFTkSuQmCC") @db.Text
@@ -988,14 +1051,51 @@ thumbnailURL String?
     savedBy   SavedPost[]
    author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId     String @default("1")
-  comments  Comment[]
-      site          Site?    @relation(fields: [siteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  subreddit   Subreddit @relation(fields: [subredditId], references: [id])
+  subredditId String @default("1")
+  comments    Comment[] 
+  votes       Vote[]
+   site          Site?    @relation(fields: [siteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   siteId        String?
   Video         Video[]
     user      String        
     userId    String      @map("user_id")
 
     @@index([userId])
+}
+
+model Subreddit {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  posts     Post[]
+
+  creatorId   String?
+  Creator     User?          @relation("CreatedBy", fields: [creatorId], references: [id])
+  subscribers Subscription[]
+
+  @@index([name])
+}
+
+model Vote {
+  user   User     @relation(fields: [userId], references: [id])
+  userId String
+  post   Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+  type   VoteType
+
+  @@id([userId, postId])
+}
+
+model CommentVote {
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String
+  type      VoteType
+
+  @@id([userId, commentId])
 }
 
 
@@ -1036,11 +1136,21 @@ model Comment {
     postId    String
     userId    String   @map("user_id")
   text      String   @db.Text
+ author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
 
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  replyToId String?
+
+
+
+
+  votes     CommentVote[]
+  commentId String?
 
     @@index([postId])
     @@index([userId])
+  @@index([replyToId])
 }
 
 
