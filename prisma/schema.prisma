@@ -11,10 +11,8 @@ datasource db {
  provider          = "postgresql"
   url               = env("DATABASE_URL")
 }
-enum VoteType {
-  UP
-  DOWN
-}
+
+
 enum SpaceUserRole {
     USER
     ADMIN
@@ -33,6 +31,11 @@ enum SubscriptionType {
     PREMIUM
 }
 
+enum VoteType {
+  UP
+  DOWN
+}
+
 enum TeamRole {
     MEMBER
     OWNER
@@ -42,41 +45,299 @@ enum Role {
   AGENCY_ADMIN
   SUBACCOUNT_USER
   SUBACCOUNT_GUEST
+  ADMIN
+  USER
+}
+model User {
+  id                  String         @id @default(uuid())
+  clerkId             String?         @unique
+  name                String?
+  email               String         @unique
+  profileImage        String?
+  tier                String?        @default("Free")
+  credits             String?        @default("10")
+  username            String?        @unique @default(uuid())
+
+  bio      String?   @db.Text
+
+  posts    Post[]
+  likes    Like[]
+  comments Comment[]
+    saved         SavedPost[]
+      mylikes           Post[]  @relation("PostLikes")
+
+    followedBy    Follows[]   @relation("following")
+    following     Follows[]   @relation("follower")
+
+emailVerified                 DateTime?   @map("email_verified")
+  emailVerificationToken        String?     @unique @map("email_verification_token")
+  passwordHash                  String?     @map("password_hash")
+  resetPasswordToken            String?     @unique @map("reset_password_token")
+  resetPasswordTokenExpiry      DateTime?   @map("reset_password_token_expiery")
+      image         String?
+  password      String?
+  role          Role @default(SUBACCOUNT_USER)
+  isTwoFactorEnabled Boolean @default(false)
+  twoFactorConfirmation TwoFactorConfirmation?  
+  website             String?
+  gender              String?
+    userCode String? @unique() @default(cuid())
+  avatarUrl    String?         @db.Text
+
+    Admin    Admin?
+    Reporter Reporter?
+
+    Feedbacks     Feedback[]
+    CreditBalance CreditBalance?
+
+    MyEditors       Editor[] @relation("myEditors")
+    FavoriteEditors Editor[] @relation("favoriteEditors")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  accounts            Account[]
+  sessions            Session[]
+  localGoogleId       String?        @unique
+  googleResourceId    String?        @unique
+  apiKey              ApiKey[]
+  apiKeyId            String?
+  membership          Member[]       @relation("membership")
+  invitedMembers      Member[]       @relation("inviter")
+
+      sites         Site[]
+
+  domains             Domain[]
+  spaces              SpaceUser[]
+  lists               List[]
+  todos               Todo[]
+  workspaces          Workspace[]
+  LocalGoogleCredential LocalGoogleCredential?
+  DiscordWebhook      DiscordWebhook[]
+  Notion              Notion[]
+  Slack               Slack[]
+  connections         Connections[]
+  workflows           Workflows[]
+    agencyId     String?
+  Agency       Agency?        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  Permissions  Permissions[]
+  Ticket       Ticket[]
+  Notification Notification[]
+
+  @@index([agencyId])
+  @@index([id, username])
+  @@map("users")
 }
 
-enum Icon {
-  settings
-  chart
-  calendar
-  check
-  chip
-  compass
-  database
-  flag
-  home
-  info
-  link
-  lock
-  messages
-  notification
-  payment
-  power
-  receipt
-  shield
-  star
-  tune
-  videorecorder
-  wallet
-  warning
-  headphone
-  send
-  pipelines
-  person
-  category
-  contact
-  clipboardIcon
+
+model Followers {
+  // who the user follows
+  followingId String @unique
+  //who follows the user
+  followerId  String
 }
 
+model Follows {
+    follower    User   @relation("follower", fields: [followerId], references: [id])
+    followerId  String
+    following   User   @relation("following", fields: [followingId], references: [id])
+    followingId String
+
+    @@id([followerId, followingId])
+    @@index([followerId])
+    @@index([followingId])
+}
+
+model Post {
+  id      String  @id @default(dbgenerated("concat('post_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
+    createdAt DateTime    @default(now())
+    updatedAt DateTime    @updatedAt
+    caption   String?
+    fileUrl   String      @unique
+      content  String?
+       data     Json?
+         title       String? 
+
+  slug          String   @default(cuid())
+  image         String?  @default("https://public.blob.vercel-storage.com/eEZHAoPTOBSYGBE3/hxfcV5V-eInX3jbVUhjAt1suB7zB88uGd1j20b.png") @db.Text
+  imageBlurhash String?  @default("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAhCAYAAACbffiEAAAACXBIWXMAABYlAAAWJQFJUiTwAAABfUlEQVR4nN3XyZLDIAwE0Pz/v3q3r55JDlSBplsIEI49h76k4opexCK/juP4eXjOT149f2Tf9ySPgcjCc7kdpBTgDPKByKK2bTPFEdMO0RDrusJ0wLRBGCIuelmWJAjkgPGDSIQEMBDCfA2CEPM80+Qwl0JkNxBimiaYGOTUlXYI60YoehzHJDEm7kxjV3whOQTD3AaCuhGKHoYhyb+CBMwjIAFz647kTqyapdV4enGINuDJMSScPmijSwjCaHeLcT77C7EC0C1ugaCTi2HYfAZANgj6Z9A8xY5eiYghDMNQBJNCWhASot0jGsSCUiHWZcSGQjaWWCDaGMOWnsCcn2QhVkRuxqqNxMSdUSElCDbp1hbNOsa6Ugxh7xXauF4DyM1m5BLtCylBXgaxvPXVwEoOBjeIFVODtW74oj1yBQah3E8tyz3SkpolKS9Geo9YMD1QJR1Go4oJkgO1pgbNZq0AOUPChyjvh7vlXaQa+X1UXwKxgHokB2XPxbX+AnijwIU4ahazAAAAAElFTkSuQmCC") @db.Text
+    mylikes        User[]   @relation("PostLikes")
+thumbnailURL String?
+  body         String   @db.VarChar(140)
+   images    Image[]
+
+  type    String  @default("IMAGE")
+  tags Tag[] // Define a relation to the Tag model
+    likes     Like[]
+    savedBy   SavedPost[]
+   author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId     String @default("1") 
+  comments    Comment[] 
+   site          Site?    @relation(fields: [siteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  siteId        String?
+  Video         Video[]
+    user      String        
+    userId    String      @map("user_id")
+@@index([userId], map: "Post_userId_Index")
+}
+
+model Tag {
+
+  id           String   @id @default(uuid())
+  name String
+
+  // Define a relation to the Post model
+  posts Post[]
+  color        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  subAccountId String
+
+  SubAccount SubAccount @relation(fields: [subAccountId], references: [id], onDelete: Cascade)
+  Ticket     Ticket[]
+
+  @@index([subAccountId])
+}
+
+
+
+enum TypePost {
+  IMAGE
+  VIDEO
+  POST
+}
+
+
+
+model Site {
+  id            String   @id @default(cuid())
+  name          String?
+  description   String?  @db.Text
+  logo          String?  @default("https://public.blob.vercel-storage.com/eEZHAoPTOBSYGBE3/JRajRyC-PhBHEinQkupt02jqfKacBVHLWJq7Iy.png") @db.Text
+  font          String   @default("font-cal")
+  image         String?  @default("https://public.blob.vercel-storage.com/eEZHAoPTOBSYGBE3/hxfcV5V-eInX3jbVUhjAt1suB7zB88uGd1j20b.png") @db.Text
+  imageBlurhash String?  @default("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAhCAYAAACbffiEAAAACXBIWXMAABYlAAAWJQFJUiTwAAABfUlEQVR4nN3XyZLDIAwE0Pz/v3q3r55JDlSBplsIEI49h76k4opexCK/juP4eXjOT149f2Tf9ySPgcjCc7kdpBTgDPKByKK2bTPFEdMO0RDrusJ0wLRBGCIuelmWJAjkgPGDSIQEMBDCfA2CEPM80+Qwl0JkNxBimiaYGOTUlXYI60YoehzHJDEm7kxjV3whOQTD3AaCuhGKHoYhyb+CBMwjIAFz647kTqyapdV4enGINuDJMSScPmijSwjCaHeLcT77C7EC0C1ugaCTi2HYfAZANgj6Z9A8xY5eiYghDMNQBJNCWhASot0jGsSCUiHWZcSGQjaWWCDaGMOWnsCcn2QhVkRuxqqNxMSdUSElCDbp1hbNOsa6Ugxh7xXauF4DyM1m5BLtCylBXgaxvPXVwEoOBjeIFVODtW74oj1yBQah3E8tyz3SkpolKS9Geo9YMD1QJR1Go4oJkgO1pgbNZq0AOUPChyjvh7vlXaQa+X1UXwKxgHokB2XPxbX+AnijwIU4ahazAAAAAElFTkSuQmCC") @db.Text
+  subdomain     String?  @unique
+  customDomain  String?  @unique
+  message404    String?  @default("Blimey! You've found a page that doesn't exist.") @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId        String?
+  posts         Post[]
+
+  @@index([userId])
+}
+model Video {
+  id      String  @id @default(dbgenerated("concat('video_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
+  url     String
+  description String?
+  postId      String
+  Post        Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model SavedPost {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    String
+    userId    String   @map("user_id")
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([postId, userId])
+    @@index([userId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId], map: "Like_PostId_UserId_Index")
+  @@index([postId])
+  @@index([userId])
+}
+
+model Comment {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    body      String
+    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    String
+    userId    String   @map("user_id")
+  text      String   @db.Text
+ author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+
+
+  replyToId String?
+
+
+ 
+  commentId String?
+@@index([postId, userId], map: "Comment_PostId_userId_Index")
+  @@index([userId, postId], map: "Comment_UserId_PostId_Index")
+    @@index([postId])
+    @@index([userId])
+  @@index([replyToId])
+}
+
+
+model Image {
+  //? This id is the uploadThing fileKey
+  id        String   @id
+  postId    String
+  url       String   @unique
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId], map: "Image_PostId_Index")
+}
+
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+    id String @id @default(cuid())
+  email String
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
 model Task{
   id          String    @id @default(cuid()) @map("_id")
   title       String
@@ -91,108 +352,35 @@ model Task{
 }
 
 
-model User {
-  id           String         @id @default(uuid())
-  name         String
-  avatarUrl    String         
-  email        String         @unique
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  role         Role           @default(SUBACCOUNT_USER)
-  agencyId     String?
 
-  createdSubreddits Subreddit[]    @relation("CreatedBy")
-  subscriptions     Subscription[]
-  votes             Vote[]
-    
-  apiKey   ApiKey[]
-  apiKeyId String?
-      mylikes           Post[]  @relation("PostLikes")
-  profileImageURL String?
+model PasswordResetToken {
+  id String @id @default(cuid())
+  email String
+  token String @unique
+  expires DateTime
 
-    username      String?     @unique @default(uuid())
-    bio           String?
-    website       String?
-    gender        String?
-emailVerified                 DateTime?   @map("email_verified")
-  emailVerificationToken        String?     @unique @map("email_verification_token")
-  passwordHash                  String?     @map("password_hash")
-  resetPasswordToken            String?     @unique @map("reset_password_token")
-  resetPasswordTokenExpiry      DateTime?   @map("reset_password_token_expiery")
-      image         String?
-    password String?
-surname                       String?
-  Product Product[]
-  Cart Cart[]
-  Review Review[]
-    Purchased Purchased[]
-    links Link[]
-    projects ProjectUsers[]
-    blueprints Blueprint[]
-    spaces SpaceUser[]
-    lists List[]
-    todos Todo[]
-      sites         Site[]
-    workspaces Workspace[]
-    userCode String @unique() @default(cuid())
-    posts         Post[]
-
-
-
-  CommentVote CommentVote[]
-    saved         SavedPost[]
-    likes         Like[]
-    comments      Comment[]
-    followedBy    Follows[]   @relation("following")
-    following     Follows[]   @relation("follower")
-    accounts      Account[]
-    sessions      Session[]
-    membership Member[] @relation("membership")
-    invitedMembers Member[] @relation("inviter")
-    customerPayment CustomerPayment?
-    domains Domain[]
-  ActivateToken   ActivateToken[]
-  stripeCustomerId       String?   @unique @map(name: "stripe_customer_id")
-  stripeSubscriptionId   String?   @unique @map(name: "stripe_subscription_id")
-  stripePriceId          String?   @map(name: "stripe_price_id")
-  stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
-    @@unique([userCode, email])
-    @@map("users")
-  Agency       Agency?        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  Permissions  Permissions[]
-  Ticket       Ticket[]
-  Notification Notification[]
-
-  @@index([agencyId])
+  @@unique([email, token])
 }
 
-model ApiKey {
-  id      String  @id @default(cuid())
-  key     String  @unique
-  enabled Boolean @default(true)
-  User    User    @relation(fields: [userId], references: [id])
-  userId  String
+model TwoFactorToken {
+  id String @id @default(cuid())
+  email String
+  token String @unique
+  expires DateTime
 
-  requests ApiRequest[]
-
-  @@unique([userId, key, enabled])
+  @@unique([email, token])
 }
 
-model ApiRequest {
-  id        String   @id @default(cuid())
-  timestamp DateTime @default(now())
-  method    String
-  path      String
-  status    Int
-  duration  Int
+model TwoFactorConfirmation {
+  id String @id @default(cuid())
 
-  usedApiKey String
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  ApiKey   ApiKey @relation(fields: [apiKeyId], references: [id])
-  apiKeyId String
-
-  @@index([apiKeyId, timestamp])
+  @@unique([userId])
 }
+
+
 model Permissions {
   id           String     @id @default(uuid())
   email        String
@@ -208,17 +396,17 @@ model Permissions {
 model Agency {
   id               String                @id @default(uuid())
   connectAccountId String?               @default("")
-  customerId       String                @default("")
-  name             String
-  agencyLogo       String                  
-  companyEmail     String                 
-  companyPhone     String
+  customerId       String?                @default("")
+  name             String?
+  agencyLogo       String?               @db.Text
+  companyEmail     String?                @db.Text
+  companyPhone     String?
   whiteLabel       Boolean               @default(true)
-  address          String
-  city             String
-  zipCode          String
-  state            String
-  country          String
+  address          String?
+  city             String?
+  zipCode          String?
+  state            String?
+  country          String?
   goal             Int                   @default(5)
   users            User[]
   createdAt        DateTime              @default(now())
@@ -235,10 +423,10 @@ model SubAccount {
   id               String                    @id @default(uuid())
   connectAccountId String?                   @default("")
   name             String
-  subAccountLogo   String                    
+  subAccountLogo   String                    @db.Text
   createdAt        DateTime                  @default(now())
   updatedAt        DateTime                  @updatedAt
-  companyEmail     String                     
+  companyEmail     String                    @db.Text
   companyPhone     String
   goal             Int                       @default(5)
   address          String
@@ -262,23 +450,6 @@ model SubAccount {
   @@index([agencyId])
 }
 
-model Tag {
-
-  id           String   @id @default(uuid())
-  name String
-
-  // Define a relation to the Post model
-  posts Post[]
-  color        String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  subAccountId String
-
-  SubAccount SubAccount @relation(fields: [subAccountId], references: [id], onDelete: Cascade)
-  Ticket     Ticket[]
-
-  @@index([subAccountId])
-}
 
 model Pipeline {
   id           String     @id @default(uuid())
@@ -426,7 +597,7 @@ model Funnel {
   description   String?
   published     Boolean      @default(false)
   subDomainName String?      @unique
-  favicon       String?      
+  favicon       String?      @db.Text
   subAccountId  String
   SubAccount    SubAccount   @relation(fields: [subAccountId], references: [id], onDelete: Cascade)
   FunnelPages   FunnelPage[]
@@ -523,8 +694,8 @@ model Notification {
 }
 
 enum Plan {
-  price_1NFR2MBrSm8eSKa6Fb4erlI5
- price_1MsGUCBrSm8eSKa62vIQc5WC
+  price_1OYxkqFj9oKEERu1NbKUxXxN
+  price_1OYxkqFj9oKEERu1KfJGWxgN
 }
 
 model Subscription {
@@ -534,24 +705,16 @@ model Subscription {
   plan      Plan?
   price     String?
   active    Boolean  @default(false)
- user        User      @relation(fields: [userId], references: [id])
-  userId      String
+
   priceId              String
   customerId           String
   currentPeriodEndDate DateTime
   subscritiptionId     String   @unique
 
-  agencyId String? @unique @default(uuid())
+  agencyId String? @unique
   Agency   Agency? @relation(fields: [agencyId], references: [id])
 
-
-  subreddit   Subreddit @relation(fields: [subredditId], references: [id])
-  subredditId String
-
-
-    @@index([customerId])
-
-  @@index([subredditId])
+  @@index([customerId])
 }
 
 model AddOns {
@@ -569,96 +732,339 @@ model AddOns {
 
 
 
+model Admin {
+    id String @id
 
-model Account {
-  id                String   @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?  @db.Text
-  access_token      String?  @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?  @db.Text
-  session_state     String?
-  createdAt         DateTime @default(now()) @map(name: "created_at")
-  updatedAt         DateTime @default(now()) @map(name: "updated_at")
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@index([userId])
-  @@map(name: "accounts")
+    User User @relation(fields: [id], references: [id])
 }
 
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Reporter {
+    id String @id
 
-  @@index([userId])
-  @@map(name: "sessions")
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    User User @relation(fields: [id], references: [id])
+
+    Articles Article[]
+}
+
+model Article {
+    id        Int      @id @default(autoincrement())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    title     String
+    body      String
+    summary   String?
+    published Boolean @default(false)
+
+    tags           String[]
+    Feedbacks      Feedback[]
+    Reporter       Reporter        @relation(fields: [reporterId], references: [id])
+    reporterId     String
+    EditorArticles EditorArticle[]
+}
+
+model Feedback {
+    id        Int          @id @default(autoincrement())
+    createdAt DateTime     @default(now())
+    updatedAt DateTime     @updatedAt
+    uid       String
+    articleId Int
+    user      User         @relation(fields: [uid], references: [id])
+    article   Article      @relation(fields: [articleId], references: [id])
+    type      FeedbackType
+
+    @@unique([uid, articleId])
+}
+
+enum FeedbackType {
+    LOVE
+    LIKE
+    DISLIKE
+    HATE
+}
+
+model CreditBalance {
+    id        Int      @id @default(autoincrement())
+    userId    String   @unique
+    balance   Float    @default(0)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    Transactions Transaction[]
+}
+
+model Transaction {
+    id              Int      @id @default(autoincrement())
+    userId          String
+    notes           String?
+    amount          Float
+    inputTokens     Int      @default(0)
+    outputTokens    Int      @default(0)
+    createdAt       DateTime @default(now())
+    creditBalanceId Int
+
+    CreditBalance CreditBalance @relation(fields: [creditBalanceId], references: [id], onDelete: Cascade)
+}
+
+model Editor {
+    id        Int      @id @default(autoincrement())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    name           String
+    imagePublicId  String?
+    language       Language       @default(ENGLISH)
+    style          Style
+    verbosity      Verbosity
+    wordComplexity WordComplexity
+
+    additionalNotes String?
+
+    User        User   @relation("myEditors", fields: [userId], references: [id], onDelete: Cascade)
+    userId      String
+    FavoritedBy User[] @relation("favoriteEditors")
+
+    EditorArticles EditorArticle[]
+}
+
+model EditorArticle {
+    id        Int      @id @default(autoincrement())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    title   String
+    body    String
+    summary String?
+
+    Editor   Editor @relation(fields: [editorId], references: [id], onDelete: Cascade)
+    editorId Int
+
+    OriginalArticle   Article @relation(fields: [originalArticleId], references: [id], onDelete: Cascade)
+    originalArticleId Int
+
+    @@unique([editorId, originalArticleId])
+}
+
+enum Language {
+    ENGLISH
+    TAMIL
+    HINDI
+    FRENCH
+    SPANISH
+    GERMAN
+    MANDARIN
+    JAPANESE
+}
+
+enum Style {
+    SENSATIONALIST // Exaggerated, attention-grabbing language
+    CHEERLEADER_HYPE // Exaggeratedly positive, hype-building way about any topic
+    POETIC_DESCRIPTIVE // Vivid imagery, metaphors, lyrical language
+    STRAIGHTFORWARD_FACTUAL // Concise, objective, strictly informational
+    CONSPIRACY_THEORIST // Speculative, questioning mainstream narratives
+    CELEBRITY_GOSSIP // Informal, focused on personalities and rumors
+    BREAKING_NEWS_URGENCY // Conveying a sense of immediacy and importance
+    HAIKU // Concise, nature-focused poetry
+    SHAKESPEAREAN_DRAMATIC // Iambic pentameter, grandiose metaphors
+    MOVIE_TRAILER_VOICEOVER // Suspenseful narration, highlighting key moments
+    RALLY_CRY_RHETORIC // Emotional appeals, "us vs. them" language
+    LEGAL_FORMALITIES // Dense legalese, disclaimers, formal tone
+    ACADEMIC_ANALYTICAL // In-depth analysis, scholarly language
+    SATIRICAL_HUMOR // Witty, ironic takes on the subject matter
+    CONVERSATIONAL_BLOG // Informal, personal, opinion-driven style
+}
+
+enum Verbosity {
+    SUCCINCT // Short and to the point
+    MODERATE // Balanced length
+    ELABORATE // Detailed and expansive
+}
+
+enum WordComplexity {
+    ELEMENTARY // Basic, everyday vocabulary
+    INTERMEDIATE //  More descriptive vocabulary
+    SOPHISTICATED //  Specialized or nuanced terms
+}
+
+model Group {
+  id           String        @id @default(uuid())
+  name         String
+  currency     String        @default("$")
+  participants Participant[]
+  expenses     Expense[]
+  createdAt    DateTime      @default(now())
+
+  ownerId      String        // Add ownerId field
 }
 
 
-model VerificationToken {
+model Participant {
+  id              String           @id
+  name            String
+  group           Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId         String
+  expensesPaidBy  Expense[]
+  expensesPaidFor ExpensePaidFor[]
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  grouping String
+  name     String
+  expenses Expense[]
+}
+
+model Expense {
+  id              String            @id
+  group           Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expenseDate     DateTime          @default(dbgenerated("CURRENT_DATE")) @db.Date
+  title           String
+  category        Category?         @relation(fields: [categoryId], references: [id])
+  categoryId      Int               @default(0)
+  amount          Int
+  paidBy          Participant       @relation(fields: [paidById], references: [id], onDelete: Cascade)
+  paidById        String
+  paidFor         ExpensePaidFor[]
+  groupId         String
+  isReimbursement Boolean           @default(false)
+  splitMode       SplitMode         @default(EVENLY)
+  createdAt       DateTime          @default(now())
+  documents       ExpenseDocument[]
+}
+
+model ExpenseDocument {
+  id        String   @id
+  url       String
+  width     Int
+  height    Int
+  Expense   Expense? @relation(fields: [expenseId], references: [id])
+  expenseId String?
+}
+
+enum SplitMode {
+  EVENLY
+  BY_SHARES
+  BY_PERCENTAGE
+  BY_AMOUNT
+}
+
+model ExpensePaidFor {
+  expense       Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  expenseId     String
+  participantId String
+  shares        Int         @default(1)
+
+  @@id([expenseId, participantId])
+}
+
+model VerificationRequest {
+  id         String   @id @default(cuid())
   identifier String
   token      String   @unique
   expires    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([identifier, token])
-  @@map(name: "verification_tokens")
 }
 
+model LocalGoogleCredential {
+  id          String @id @default(uuid())
+  accessToken String @unique
 
-
-
-model ActivateToken {
-  id  Int  @id @default(autoincrement())
-  token String @unique
-  activatedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  userId    String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model NewsletterSubscriber {
-  id                            String      @id @default(cuid())
-  email                         String      @unique 
-  createdAt                     DateTime    @default(now()) @map("created_at")
-
-  @@map("newsletter_subscribers")
-}
-
-model Movie {
-  id            Int         @id
-  imageString   String
-  title         String
-  age           Int
-  duration      Float
-  overview      String
-  release       Int
-  videoSource   String
-  category      String
-  youtubeString String
-  WatchLists    WatchList[]
+  folderId   String?
+  pageToken  String?
+  channelId  String  @unique @default(uuid())
+  subscribed Boolean @default(false)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String  @unique
+  user   User @relation(fields: [userId], references: [id])
 }
 
-model WatchList {
-  id     String @id @default(uuid())
-  userId String
-
-  Movie   Movie? @relation(fields: [movieId], references: [id])
-  movieId Int?
+model DiscordWebhook {
+  id          String        @id @default(uuid())
+  webhookId   String        @unique
+  url         String        @unique
+  name        String
+  guildName   String
+  guildId     String
+  channelId   String        @unique
+  user        User          @relation(fields: [userId], references: [clerkId])
+  userId      String
+  connections Connections[]
 }
 
+model Slack {
+  id String @id @default(uuid())
+
+  appId            String
+  authedUserId     String
+  authedUserToken  String @unique
+  slackAccessToken String @unique
+  botUserId        String
+  teamId           String
+  teamName         String
+
+  User        User          @relation(fields: [userId], references: [clerkId])
+  userId      String
+  connections Connections[]
+}
+
+model Notion {
+  id            String        @id @default(uuid())
+  accessToken   String        @unique
+  workspaceId   String        @unique
+  databaseId    String        @unique
+  workspaceName String
+  workspaceIcon String
+  User          User          @relation(fields: [userId], references: [clerkId])
+  userId        String
+  connections   Connections[]
+}
+
+model Connections {
+  id               String          @id @default(uuid())
+  type             String          @unique
+  DiscordWebhook   DiscordWebhook? @relation(fields: [discordWebhookId], references: [id])
+  discordWebhookId String?
+  Notion           Notion?         @relation(fields: [notionId], references: [id])
+  notionId         String?
+  User             User?           @relation(fields: [userId], references: [clerkId])
+  userId           String?
+  Slack            Slack?          @relation(fields: [slackId], references: [id])
+  slackId          String?
+}
+
+model Workflows {
+  id                String   @id @default(uuid())
+  nodes             String?
+  edges             String?
+  name              String
+  discordTemplate   String?
+  notionTemplate    String?
+  slackTemplate     String?
+  slackChannels     String[]
+  slackAccessToken  String?
+  notionAccessToken String?
+  notionDbId        String?
+  flowPath          String?
+  cronPath          String?
+  publish           Boolean? @default(false)
+  description       String
+  User              User     @relation(fields: [userId], references: [clerkId])
+  userId            String
+}
 
 model Form {
     id Int @id() @default(autoincrement())
@@ -687,9 +1093,6 @@ model FormSubmissions {
     content String
 }
 
-model channels {
-    id String @id() @default(uuid())
-}
 
 /// @@deny('all', auth() == null)
 /// @@allow('create', true)
@@ -725,81 +1128,6 @@ model SpaceUser {
 
     @@unique([userId, spaceId])
 }
-
-/// @@allow('create', true)
-/// @@allow('read', spaces ? [space.members ? [user == auth()]])
-/// @@allow('all', auth() == this)
-
-
-model Site {
-  id            String   @id @default(cuid())
-  name          String?
-  description   String?  @db.Text
-  logo          String?  @default("https://public.blob.vercel-storage.com/eEZHAoPTOBSYGBE3/JRajRyC-PhBHEinQkupt02jqfKacBVHLWJq7Iy.png") @db.Text
-  font          String   @default("font-cal")
-  image         String?  @default("https://public.blob.vercel-storage.com/eEZHAoPTOBSYGBE3/hxfcV5V-eInX3jbVUhjAt1suB7zB88uGd1j20b.png") @db.Text
-  imageBlurhash String?  @default("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAhCAYAAACbffiEAAAACXBIWXMAABYlAAAWJQFJUiTwAAABfUlEQVR4nN3XyZLDIAwE0Pz/v3q3r55JDlSBplsIEI49h76k4opexCK/juP4eXjOT149f2Tf9ySPgcjCc7kdpBTgDPKByKK2bTPFEdMO0RDrusJ0wLRBGCIuelmWJAjkgPGDSIQEMBDCfA2CEPM80+Qwl0JkNxBimiaYGOTUlXYI60YoehzHJDEm7kxjV3whOQTD3AaCuhGKHoYhyb+CBMwjIAFz647kTqyapdV4enGINuDJMSScPmijSwjCaHeLcT77C7EC0C1ugaCTi2HYfAZANgj6Z9A8xY5eiYghDMNQBJNCWhASot0jGsSCUiHWZcSGQjaWWCDaGMOWnsCcn2QhVkRuxqqNxMSdUSElCDbp1hbNOsa6Ugxh7xXauF4DyM1m5BLtCylBXgaxvPXVwEoOBjeIFVODtW74oj1yBQah3E8tyz3SkpolKS9Geo9YMD1QJR1Go4oJkgO1pgbNZq0AOUPChyjvh7vlXaQa+X1UXwKxgHokB2XPxbX+AnijwIU4ahazAAAAAElFTkSuQmCC") @db.Text
-  subdomain     String?  @unique
-  customDomain  String?  @unique
-  message404    String?  @default("Blimey! You've found a page that doesn't exist.") @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userId        String?
-  posts         Post[]
-
-  @@index([userId])
-}
-model CustomerPayment {
-    id String @id() @default(cuid())
-    paymentId String @unique()
-    customerId String @unique()
-    email String? @unique()
-    subscriptionType SubscriptionType @default(FREE)
-    createdAt DateTime? @default(now())
-    deletedAt DateTime?
-    updatedAt DateTime? @updatedAt()
-    customer User @relation(fields: [customerId], references: [id])
-
-    @@map("customerPayments")
-}
-
-model Domain {
-    id String @id() @default(cuid())
-    workspaceId String
-    addedById String
-    name String
-    subdomain String?
-    verified Boolean? @default(true)
-    value String?
-    createdAt DateTime? @default(now())
-    deletedAt DateTime?
-    updatedAt DateTime? @updatedAt()
-    addedBy User @relation(fields: [addedById], references: [id])
-    workspace Workspace @relation(fields: [workspaceId], references: [id])
-
-    @@map("domains")
-}
-
-model Member {
-    id String @id() @default(cuid())
-    workspaceId String
-    email String
-    inviter String
-    invitedAt DateTime? @default(now())
-    joinedAt DateTime?
-    deletedAt DateTime?
-    updatedAt DateTime? @updatedAt()
-    status InvitationStatus @default(PENDING)
-    teamRole TeamRole @default(MEMBER)
-    member User? @relation(fields: [email], references: [email], name: "membership")
-    invitedBy User? @relation(fields: [inviter], references: [email], name: "inviter")
-    workspace Workspace @relation(fields: [workspaceId], references: [id])
-
-    @@unique([workspaceId, email])
-    @@map("members")
-}
-
 
 model Workspace {
     id String @id() @default(cuid())
@@ -860,441 +1188,40 @@ model Todo {
     completedAt DateTime?
 }
 
-model Store {
-  id              String    @id @default(uuid())
-  name            String
-  userId          String
-  quickLink1   String   @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
-  primaryprompt   String   @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
-  billboards      Billboard[] @relation("StoreToBillboard")
-  categories      Category[] @relation("StoreToCategory")
-  products        Product[]  @relation("StoreToProduct")
-  sizes           Size[]     @relation("StoreToSize")
-  colors          Color[]     @relation("StoreToColor")
-  orders          Order[]     @relation("StoreToOrder")
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-}
-
-model Billboard {
-  id          String @id @default(uuid())
-  storeId     String
-  store       Store @relation("StoreToBillboard", fields: [storeId], references: [id])
-  label       String
-  imageUrl    String
-  categories  Category[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([storeId])
-}
-
-model Category {
-  id          String      @id @default(uuid())
-  storeId     String      // Foreign Key to Store
-  store       Store       @relation("StoreToCategory", fields: [storeId], references: [id])
-  billboardId String      // Foreign Key to Billboard
-  billboard   Billboard   @relation(fields: [billboardId], references: [id])
-  name        String
-  products    Product[]   @relation("CategoryToProduct")
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  @@index([storeId])
-  @@index([billboardId])
-}
-
-
-model Product {
-  id          String      @id @default(uuid())
-  storeId     String      // Foreign Key to Store
-  store       Store       @relation("StoreToProduct", fields: [storeId], references: [id])
-  categoryId  String      // Foreign Key to Category
-  category    Category    @relation("CategoryToProduct", fields: [categoryId], references: [id])
-  name        String
-  price       Int
-  userId      String
-  title       String
-  style       String
-  description String 
-  imagesUrl   String      @default("")
-  inventory   String
-  isFeatured  Boolean     @default(false)
-  isArchived  Boolean     @default(false)
-  sizeId      String      // Foreign Key to Size
-  size        Size        @relation(fields: [sizeId], references: [id])
-  colorId     String      // Foreign Key to Color
-  color       Color       @relation(fields: [colorId], references: [id])
-  User        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  images      Image[]     // Relation to Image model
-  orderItems  OrderItem[] // Relation to Order model
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  Cart        Cart[]
-  Review      Review[]
-  Purchased   Purchased[]
-  @@index([storeId])
-  @@index([categoryId])
-  @@index([sizeId])
-  @@index([colorId])
-  @@index([userId])
-}
-
-model Order {
-  id        String    @id @default(uuid())
-  storeId     String    // Foreign Key to Store
-  store       Store     @relation("StoreToOrder", fields: [storeId], references: [id])
-  orderItems OrderItem[] // Relation to OrderItem model
-  isPaid     Boolean   @default(false)
-  phone      String    @default("")
-  address    String    @default("")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  @@index([storeId])
-}
-
-// Intermediary for a many-to-many relationship
-model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String  // Foreign Key to Order
-  order     Order   @relation(fields: [orderId], references: [id])
-  productId String  // Foreign Key to Product
-  product   Product @relation(fields: [productId], references: [id])
-
-  @@index([orderId])
-  @@index([productId])
-}
-
-model Size {
-  id          String    @id @default(uuid())
-  storeId     String    // Foreign Key to Store
-  store       Store     @relation("StoreToSize", fields: [storeId], references: [id])
-  name        String
-  value       String
-  products    Product[] // Relation to Product model
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([storeId])
-}
-
-model Color {
-  id          String   @id @default(uuid())
-  storeId     String   // Foreign Key to Store
-  store       Store    @relation("StoreToColor", fields: [storeId], references: [id])
-  name        String
-  value       String
-  products    Product[] // Relation to Product model
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([storeId])
-}
-
-model Image {
-
-  id      String  @id @default(dbgenerated("concat('image_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
-  url     String
-  imageUrl    String  @default("")
-  description String?
-  postId      String
-  Post        Post @relation(fields: [postId], references: [id], onDelete: Cascade)  
-  productId   String   // Foreign Key to Product
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([productId])
-}
-
-model Followers {
-  // who the user follows
-  followingId String @unique
-  //who follows the user
-  followerId  String
-}
-
-model Follows {
-    follower    User   @relation("follower", fields: [followerId], references: [id])
-    followerId  String
-    following   User   @relation("following", fields: [followingId], references: [id])
-    followingId String
-
-    @@id([followerId, followingId])
-    @@index([followerId])
-    @@index([followingId])
-}
-
-model Post {
-  id      String  @id @default(dbgenerated("concat('post_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
-    createdAt DateTime    @default(now())
-    updatedAt DateTime    @updatedAt
-    caption   String?
-    fileUrl   String      @unique
-      content  String?
-       data     Json?
-         title       String? 
-
-  slug          String   @default(cuid())
-  image         String?  @default("https://public.blob.vercel-storage.com/eEZHAoPTOBSYGBE3/hxfcV5V-eInX3jbVUhjAt1suB7zB88uGd1j20b.png") @db.Text
-  imageBlurhash String?  @default("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAhCAYAAACbffiEAAAACXBIWXMAABYlAAAWJQFJUiTwAAABfUlEQVR4nN3XyZLDIAwE0Pz/v3q3r55JDlSBplsIEI49h76k4opexCK/juP4eXjOT149f2Tf9ySPgcjCc7kdpBTgDPKByKK2bTPFEdMO0RDrusJ0wLRBGCIuelmWJAjkgPGDSIQEMBDCfA2CEPM80+Qwl0JkNxBimiaYGOTUlXYI60YoehzHJDEm7kxjV3whOQTD3AaCuhGKHoYhyb+CBMwjIAFz647kTqyapdV4enGINuDJMSScPmijSwjCaHeLcT77C7EC0C1ugaCTi2HYfAZANgj6Z9A8xY5eiYghDMNQBJNCWhASot0jGsSCUiHWZcSGQjaWWCDaGMOWnsCcn2QhVkRuxqqNxMSdUSElCDbp1hbNOsa6Ugxh7xXauF4DyM1m5BLtCylBXgaxvPXVwEoOBjeIFVODtW74oj1yBQah3E8tyz3SkpolKS9Geo9YMD1QJR1Go4oJkgO1pgbNZq0AOUPChyjvh7vlXaQa+X1UXwKxgHokB2XPxbX+AnijwIU4ahazAAAAAElFTkSuQmCC") @db.Text
-    mylikes        User[]   @relation("PostLikes")
-thumbnailURL String?
-  body         String   @db.VarChar(140)
-   images    Image[]
-
-  type    String  @default("IMAGE")
-  tags Tag[] // Define a relation to the Tag model
-    likes     Like[]
-    savedBy   SavedPost[]
-   author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId     String @default("1")
-  subreddit   Subreddit @relation(fields: [subredditId], references: [id])
-  subredditId String @default("1")
-  comments    Comment[] 
-  votes       Vote[]
-   site          Site?    @relation(fields: [siteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  siteId        String?
-  Video         Video[]
-    user      String        
-    userId    String      @map("user_id")
-
-    @@index([userId])
-}
-
-model Subreddit {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  posts     Post[]
-
-  creatorId   String?
-  Creator     User?          @relation("CreatedBy", fields: [creatorId], references: [id])
-  subscribers Subscription[]
-
-  @@index([name])
-}
-
-model Vote {
-  user   User     @relation(fields: [userId], references: [id])
-  userId String
-  post   Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  postId String
-  type   VoteType
-
-  @@id([userId, postId])
-}
-
-model CommentVote {
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  commentId String
-  type      VoteType
-
-  @@id([userId, commentId])
-}
-
-
-model SavedPost {
-    id        String   @id @default(cuid())
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-    postId    String
-    userId    String   @map("user_id")
-
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([postId, userId])
-    @@index([userId])
-}
-
-model Like {
-    id        String   @id @default(cuid())
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-    postId    String
-    userId    String   @map("user_id")
-
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([postId, userId])
-    @@index([userId])
-}
-
-model Comment {
-    id        String   @id @default(cuid())
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    body      String
-    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-    postId    String
-    userId    String   @map("user_id")
-  text      String   @db.Text
- author    User     @relation(fields: [authorId], references: [id])
-  authorId  String
-
-
-  replyToId String?
-
-
-
-
-  votes     CommentVote[]
-  commentId String?
-
-    @@index([postId])
-    @@index([userId])
-  @@index([replyToId])
-}
-
-
-model Link {
+model Domain {
     id String @id() @default(cuid())
-    domain String
-    key String
-    url String   
-    archived Boolean @default(false)
-    expiresAt DateTime?
-    password String?
-    proxy Boolean @default(false)
-    title String?
-    slug        String   @unique
-    creatorId   String
-    description String? @db.VarChar(280)
-    image String?  
-    utm_source String?
-    utm_medium String?
-    utm_campaign String?
-    utm_term String?
-    utm_content String?
-    ios String?  
-    android String?  
-    clicks Int @default(0)
-    publicStats Boolean @default(false)
-    createdBy   User?    @relation(fields: [creatorId], references: [id])
-    userId String?
-    project Project? @relation(fields: [domain], references: [domain], onUpdate: Cascade, onDelete: Cascade)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
-    zenstack_guard Boolean @default(true)
-
-        @@unique([key])
-    @@index([domain, archived, expiresAt, createdAt(sort: Desc)])
-    @@index([domain, archived, expiresAt, clicks(sort: Desc)])
-    @@index([domain, archived, expiresAt, userId, createdAt(sort: Desc)])
-    @@index([domain, archived, expiresAt, userId, clicks(sort: Desc)])
-    @@index([userId])
-    @@index([creatorId])
-}
-
-model Project {
-    id String @id() @default(cuid())
+    workspaceId String
+    addedById String
     name String
-    slug String @unique()
-    logo String?
-    domain String @unique()
-    domainVerified Boolean @default(false)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
-    users ProjectUsers[]
-    invites ProjectInvite[]
-    domainLastChecked DateTime @default(now())
-    usage Int @default(0)
-    ownerUsageLimit Int @default(1000)
-    ownerExceededUsage Boolean @default(false)
-    links Link[]
-    zenstack_guard Boolean @default(true)
+    subdomain String?
+    verified Boolean? @default(true)
+    value String?
+    createdAt DateTime? @default(now())
+    deletedAt DateTime?
+    updatedAt DateTime? @updatedAt()
+    addedBy User @relation(fields: [addedById], references: [id])
+    workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+    @@map("domains")
 }
-model ProjectInvite {
-    email String
-    expires DateTime
-    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    projectId String
-    createdAt DateTime @default(now())
-    zenstack_guard Boolean @default(true)
-    @@unique([email, projectId])
-    @@index([projectId])
-}
-model ProjectUsers {
+
+model Member {
     id String @id() @default(cuid())
-    role String @default("member")
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-    userId String
-    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    projectId String
-    zenstack_guard Boolean @default(true)
-    @@unique([userId, projectId])
-    @@index([projectId])
-}
-model Blueprint {
-    id Int @id() @default(autoincrement())
-    title String
-    user User @relation(fields: [userId], references: [id])
-    userId String
-    zenstack_guard Boolean @default(true)
-}
-model Cart {
-  id        Int     @id @default(autoincrement())
-  productId  String
-  Product Product @relation(fields: [productId],references: [id],onDelete: Cascade)
-  userId String
-  User User @relation(fields: [userId],references: [id],onDelete: Cascade)
-  @@index([productId])
-  @@index([userId])
-}
-model Review {
-  id        Int     @id @default(autoincrement())
-  rating Int
-  commentry String
-  productId String
-  Product Product @relation(fields: [productId],references: [id],onDelete: Cascade)
-  userId String
-  User User @relation(fields: [userId],references: [id],onDelete: Cascade)
-  @@index([productId])
-  @@index([userId])
-}
-model Purchased {
-    id        Int     @id @default(autoincrement())
-    isPaid    Boolean
-    productId String
-    Product Product @relation(fields: [productId],references: [id],onDelete: Cascade)
-    userId String
-    User User @relation(fields: [userId], references: [id], onDelete: Cascade)
-    @@index([productId])
-    @@index([userId])
-}
+    workspaceId String
+    email String
+    inviter String
+    invitedAt DateTime? @default(now())
+    joinedAt DateTime?
+    deletedAt DateTime?
+    updatedAt DateTime? @updatedAt()
+    status InvitationStatus @default(PENDING)
+    teamRole TeamRole @default(MEMBER)
+    member User? @relation(fields: [email], references: [email], name: "membership")
+    invitedBy User? @relation(fields: [inviter], references: [email], name: "inviter")
+    workspace Workspace @relation(fields: [workspaceId], references: [id])
 
-
-
-enum TypePost {
-  IMAGE
-  VIDEO
-  POST
-}
-
-
-
-model Video {
-  id      String  @id @default(dbgenerated("concat('video_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
-  url     String
-  description String?
-  postId      String
-  Post        Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-}
-model UserApiLimit {
-  id        String      @id @default(cuid())
-  userId    String   @unique
-  count     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+    @@unique([workspaceId, email])
+    @@map("members")
 }
 
 model UserSubscription {
@@ -1305,31 +1232,71 @@ model UserSubscription {
   stripePriceId          String?   @map(name: "stripe_price_id")
   stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
 }
-
-
-model orders {
+model UserApiLimit {
   id        String      @id @default(cuid())
-  repoUrl    String   @unique @db.VarChar
-  subdomain  String   @unique @db.VarChar
-  createdAt  DateTime @default(now()) @db.Timestamp(6)
-  createdBy  String   @db.VarChar
-  siteName   String   @db.VarChar
-  customCss  String?  @db.VarChar
-  customHead String?  @db.VarChar
-  inShowcase Boolean? @default(false)
+  userId    String   @unique
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model ApiKey {
+  id      String  @id @default(cuid())
+  key     String  @unique
+  enabled Boolean @default(true)
+  User    User    @relation(fields: [userId], references: [id])
+  userId  String
+
+  requests ApiRequest[]
+
+  @@unique([userId, key, enabled])
+}
+
+model ApiRequest {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  method    String
+  path      String
+  status    Int
+  duration  Int
+
+  usedApiKey String
+
+  ApiKey   ApiKey @relation(fields: [apiKeyId], references: [id])
+  apiKeyId String
+
+  @@index([apiKeyId, timestamp])
 }
 
 
-
-model Campaigns {
-  id        String      @id @default(cuid())
-    Url String @unique()
-    subdomain String @unique()
-    createdAt DateTime @default(now())
-    createdBy String
-    siteName String
-    customCss String?
-    customHead String?
-    inShowcase Boolean? @default(false)
-    zenstack_guard Boolean @default(true)
+enum Icon {
+  settings
+  chart
+  calendar
+  check
+  chip
+  compass
+  database
+  flag
+  home
+  info
+  link
+  lock
+  messages
+  notification
+  payment
+  power
+  receipt
+  shield
+  star
+  tune
+  videorecorder
+  wallet
+  warning
+  headphone
+  send
+  pipelines
+  person
+  category
+  contact
+  clipboardIcon
 }
