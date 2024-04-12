@@ -59,6 +59,7 @@ model User {
   username            String?        @unique @default(uuid())
 
   bio      String?   @db.Text
+    links Link[]
 
   posts    Post[]
   likes    Like[]
@@ -90,6 +91,9 @@ emailVerified                 DateTime?   @map("email_verified")
     Feedbacks     Feedback[]
     CreditBalance CreditBalance?
 
+    projects ProjectUsers[]
+    blueprints Blueprint[]
+    
     MyEditors       Editor[] @relation("myEditors")
     FavoriteEditors Editor[] @relation("favoriteEditors")
   createdAt           DateTime       @default(now())
@@ -121,6 +125,11 @@ emailVerified                 DateTime?   @map("email_verified")
   Permissions  Permissions[]
   Ticket       Ticket[]
   Notification Notification[]
+
+    customerPayment CustomerPayment?
+  Product Product[]
+
+
 
   @@index([agencyId])
   @@index([id, username])
@@ -288,12 +297,18 @@ model Comment {
 
 
 model Image {
-  //? This id is the uploadThing fileKey
-  id        String   @id
-  postId    String
-  url       String   @unique
-  createdAt DateTime @default(now())
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id      String  @id @default(dbgenerated("concat('image_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
+  url     String
+  imageUrl    String  @default("")
+  description String?
+  postId      String
+  Post        Post @relation(fields: [postId], references: [id], onDelete: Cascade)  
+  productId   String   // Foreign Key to Product
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([productId])
 
   @@index([postId], map: "Image_PostId_Index")
 }
@@ -915,10 +930,21 @@ model Participant {
 }
 
 model Category {
-  id       Int       @id @default(autoincrement())
-  grouping String
-  name     String
+  id       String      @id @default(uuid())
+  grouping String?
+  name     String?
   expenses Expense[]
+
+    storeId     String?      // Foreign Key to Store
+  store       Store?       @relation("StoreToCategory", fields: [storeId], references: [id])
+  billboardId String?      // Foreign Key to Billboard
+  billboard   Billboard?   @relation(fields: [billboardId], references: [id])
+   products    Product[]   @relation("CategoryToProduct")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([storeId])
+  @@index([billboardId])
 }
 
 model Expense {
@@ -926,8 +952,8 @@ model Expense {
   group           Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
   expenseDate     DateTime          @default(dbgenerated("CURRENT_DATE")) @db.Date
   title           String
-  category        Category?         @relation(fields: [categoryId], references: [id])
-  categoryId      Int               @default(0)
+  category        Category         @relation(fields: [categoryId], references: [id])
+  categoryId      String                
   amount          Int
   paidBy          Participant       @relation(fields: [paidById], references: [id], onDelete: Cascade)
   paidById        String
@@ -1267,6 +1293,295 @@ model ApiRequest {
   @@index([apiKeyId, timestamp])
 }
 
+
+model NewsletterSubscriber {
+  id                            String      @id @default(cuid())
+  email                         String      @unique 
+  createdAt                     DateTime    @default(now()) @map("created_at")
+
+  @@map("newsletter_subscribers")
+}
+
+model Movie {
+  id            Int         @id
+  imageString   String
+  title         String
+  age           Int
+  duration      Float
+  overview      String
+  release       Int
+  videoSource   String
+  category      String
+  youtubeString String
+  WatchLists    WatchList[]
+
+  createdAt DateTime @default(now())
+}
+
+model WatchList {
+  id     String @id @default(uuid())
+  userId String
+
+  Movie   Movie? @relation(fields: [movieId], references: [id])
+  movieId Int?
+}
+
+
+
+model channels {
+    id String @id() @default(uuid())
+}
+
+
+
+model CustomerPayment {
+    id String @id() @default(cuid())
+    paymentId String @unique()
+    customerId String @unique()
+    email String? @unique()
+    subscriptionType SubscriptionType @default(FREE)
+    createdAt DateTime? @default(now())
+    deletedAt DateTime?
+    updatedAt DateTime? @updatedAt()
+    customer User @relation(fields: [customerId], references: [id])
+
+    @@map("customerPayments")
+}
+
+
+
+model Store {
+  id              String    @id @default(uuid())
+  name            String?
+  userId          String?
+  quickLink1   String?   @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
+  primaryprompt   String?   @default("https://unlimitednow.live/assets/images/logo3-369x208.png")
+  billboards      Billboard[]  @relation("StoreToBillboard")
+  categories      Category[] @relation("StoreToCategory")
+  products        Product[]  @relation("StoreToProduct")
+  sizes           Size[]     @relation("StoreToSize")
+  colors          Color[]     @relation("StoreToColor")
+  orders          Order[]     @relation("StoreToOrder")
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model Billboard {
+  id          String @id @default(uuid())
+  storeId     String
+  store       Store @relation("StoreToBillboard", fields: [storeId], references: [id])
+  label       String
+  imageUrl    String
+  categories  Category[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([storeId])
+}
+
+
+model Product {
+  id          String      @id @default(uuid())
+  storeId     String      // Foreign Key to Store
+  store       Store       @relation("StoreToProduct", fields: [storeId], references: [id])
+  categoryId  String      // Foreign Key to Category
+  category    Category    @relation("CategoryToProduct", fields: [categoryId], references: [id])
+  name        String
+  price       Int
+  userId      String
+  title       String
+  style       String
+  description String 
+  imagesUrl   String      @default("")
+  inventory   String
+  isFeatured  Boolean     @default(false)
+  isArchived  Boolean     @default(false)
+  sizeId      String      // Foreign Key to Size
+  size        Size        @relation(fields: [sizeId], references: [id])
+  colorId     String      // Foreign Key to Color
+  color       Color       @relation(fields: [colorId], references: [id])
+  User        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  images      Image[]     // Relation to Image model
+  orderItems  OrderItem[] // Relation to Order model
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt 
+  @@index([storeId])
+  @@index([categoryId])
+  @@index([sizeId])
+  @@index([colorId])
+  @@index([userId])
+}
+
+model Order {
+  id        String    @id @default(uuid())
+  storeId     String    // Foreign Key to Store
+  store       Store     @relation("StoreToOrder", fields: [storeId], references: [id])
+  orderItems OrderItem[] // Relation to OrderItem model
+  isPaid     Boolean   @default(false)
+  phone      String    @default("")
+  address    String    @default("")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([storeId])
+}
+
+// Intermediary for a many-to-many relationship
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String  // Foreign Key to Order
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String  // Foreign Key to Product
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Size {
+  id          String    @id @default(uuid())
+  storeId     String    // Foreign Key to Store
+  store       Store     @relation("StoreToSize", fields: [storeId], references: [id])
+  name        String
+  value       String
+  products    Product[] // Relation to Product model
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([storeId])
+}
+
+
+model Color {
+  id          String   @id @default(uuid())
+  storeId     String   // Foreign Key to Store
+  store       Store    @relation("StoreToColor", fields: [storeId], references: [id])
+  name        String
+  value       String
+  products    Product[] // Relation to Product model
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([storeId])
+}
+
+
+
+model Link {
+    id String @id() @default(cuid())
+    domain String
+    key String
+    url String   
+    archived Boolean @default(false)
+    expiresAt DateTime?
+    password String?
+    proxy Boolean @default(false)
+    title String?
+    slug        String   @unique
+    creatorId   String
+    description String? @db.VarChar(280)
+    image String?  
+    utm_source String?
+    utm_medium String?
+    utm_campaign String?
+    utm_term String?
+    utm_content String?
+    ios String?  
+    android String?  
+    clicks Int @default(0)
+    publicStats Boolean @default(false)
+    createdBy   User?    @relation(fields: [creatorId], references: [id])
+    userId String?
+    project Project? @relation(fields: [domain], references: [domain], onUpdate: Cascade, onDelete: Cascade)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+    zenstack_guard Boolean @default(true)
+
+        @@unique([key])
+    @@index([domain, archived, expiresAt, createdAt(sort: Desc)])
+    @@index([domain, archived, expiresAt, clicks(sort: Desc)])
+    @@index([domain, archived, expiresAt, userId, createdAt(sort: Desc)])
+    @@index([domain, archived, expiresAt, userId, clicks(sort: Desc)])
+    @@index([userId])
+    @@index([creatorId])
+}
+
+
+model Project {
+    id String @id() @default(cuid())
+    name String
+    slug String @unique()
+    logo String?
+    domain String @unique()
+    domainVerified Boolean @default(false)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+    users ProjectUsers[]
+    invites ProjectInvite[]
+    domainLastChecked DateTime @default(now())
+    usage Int @default(0)
+    ownerUsageLimit Int @default(1000)
+    ownerExceededUsage Boolean @default(false)
+    links Link[]
+    zenstack_guard Boolean @default(true)
+}
+
+
+model ProjectInvite {
+    email String
+    expires DateTime
+    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    projectId String
+    createdAt DateTime @default(now())
+    zenstack_guard Boolean @default(true)
+    @@unique([email, projectId])
+    @@index([projectId])
+}
+model ProjectUsers {
+    id String @id() @default(cuid())
+    role String @default("member")
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId String
+    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    projectId String
+    zenstack_guard Boolean @default(true)
+    @@unique([userId, projectId])
+    @@index([projectId])
+}
+model Blueprint {
+    id Int @id() @default(autoincrement())
+    title String
+    user User @relation(fields: [userId], references: [id])
+    userId String
+    zenstack_guard Boolean @default(true)
+}
+model Cart {
+  id        Int     @id @default(autoincrement()) 
+}
+model Review {
+  id        Int     @id @default(autoincrement()) 
+}
+model Purchased {
+    id        Int     @id @default(autoincrement()) 
+}
+
+
+
+
+
+
+model orders {
+  id        String      @id @default(cuid()) 
+}
+
+
+
+model Campaigns {
+  id        String      @id @default(cuid()) 
+}
 
 enum Icon {
   settings
