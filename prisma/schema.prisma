@@ -48,6 +48,119 @@ enum Role {
   ADMIN
   USER
 }
+
+model Profile {
+  id            String      @id @default(cuid()) 
+  userId        String      @unique
+  name          String
+  imageUrl      String
+  email         String
+
+  servers       Server[]
+  members       Member[]
+  channels      Channel[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Server {
+  id            String      @id @default(cuid()) 
+  name          String
+  imageUrl      String
+  inviteCode    Int?      @unique
+preferences     String?
+  profileId     String      @default(cuid()) // Change this to UUID
+  profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  members       Member[]
+  channels      Channel[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+
+enum MemberRole {
+  ADMIN
+  MODERATOR
+  GUEST
+}
+
+enum ChannelType {
+  TEXT
+  AUDIO
+  VIDEO
+}
+
+
+model Channel {
+  id            String      @id @default(cuid())
+  name          String
+  type          ChannelType @default(TEXT)
+
+  profileId     String      @default(cuid()) // Change this to UUID
+  profile       Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  serverId      String      @default(cuid()) // Change this to UUID
+  server        Server      @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  messages      Message[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Message   {
+  id            String      @id @default(cuid()) 
+  content       String
+
+  fileUrl       String?
+
+  memberId      String      @default(cuid()) // Change this to UUID
+  member        Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  channelId     String      @default(cuid()) // Change this to UUID
+  channel       Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  deleted       Boolean     @default(false)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Conversation {
+  id              String      @id @default(cuid()) 
+
+  memberOneId     String      @default(cuid()) // Change this to UUID
+  memberOne       Member      @relation("MemberOne", fields: [memberOneId], references: [id], onDelete: Cascade)
+
+  memberTwoId     String      @default(cuid()) // Change this to UUID
+  memberTwo       Member      @relation("MemberTwo", fields: [memberTwoId], references: [id], onDelete: Cascade)
+
+  directMessages  DirectMessage[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model DirectMessage {
+  id              String         @id @default(cuid())
+  content         String
+  fileUrl         String?
+
+  memberId        String      @default(cuid()) // Change this to UUID
+  member          Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  conversationId  String      @default(cuid()) // Change this to UUID
+  conversation    Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  deleted         Boolean       @default(false)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
 model User {
   id                  String         @id @default(uuid())
   clerkId             String?         @unique
@@ -60,6 +173,7 @@ model User {
 
   bio      String?   @db.Text
     links Link[]
+  listings Listing[]
 
   posts    Post[]
   likes    Like[]
@@ -136,6 +250,21 @@ emailVerified                 DateTime?   @map("email_verified")
   @@map("users")
 }
 
+model Listing {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(255)
+  description String
+  image       String
+  price       Int
+  endDate     DateTime @map("end_date")
+  seller      User     @relation(fields: [sellerId], references: [id])
+  sellerId    String     @map("seller_id")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map(name: "listings")
+}
 
 model Followers {
   // who the user follows
@@ -301,10 +430,10 @@ model Image {
   url     String
   imageUrl    String  @default("")
   description String?
-  postId      String
-  Post        Post @relation(fields: [postId], references: [id], onDelete: Cascade)  
-  productId   String   // Foreign Key to Product
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  postId      String?
+  Post        Post?  @relation(fields: [postId], references: [id], onDelete: Cascade)  
+  productId   String?   // Foreign Key to Product
+  product     Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1074,7 +1203,7 @@ model Connections {
 
 model Workflows {
   id                String   @id @default(uuid())
-  nodes             String?
+  nodes             String[]
   edges             String?
   name              String
   discordTemplate   String?
@@ -1232,23 +1361,39 @@ model Domain {
 }
 
 model Member {
-    id String @id() @default(cuid())
-    workspaceId String
-    email String
-    inviter String
-    invitedAt DateTime? @default(now())
-    joinedAt DateTime?
-    deletedAt DateTime?
-    updatedAt DateTime? @updatedAt()
-    status InvitationStatus @default(PENDING)
-    teamRole TeamRole @default(MEMBER)
-    member User? @relation(fields: [email], references: [email], name: "membership")
-    invitedBy User? @relation(fields: [inviter], references: [email], name: "inviter")
-    workspace Workspace @relation(fields: [workspaceId], references: [id])
+  id String @id @default(cuid())
 
-    @@unique([workspaceId, email])
-    @@map("members")
+  role MemberRole @default(GUEST)
+
+  profileId String @default(cuid()) // Change this to UUID
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  serverId String @default(cuid()) // Change this to UUID
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  messages Message[]
+  directMessages DirectMessage[]
+
+  conversationsInitiated Conversation[] @relation("MemberOne")
+  conversationsReceived Conversation[] @relation("MemberTwo")
+
+  workspaceId String?
+  email String?
+  inviter String?
+  invitedAt DateTime? @default(now())
+  joinedAt DateTime?
+  deletedAt DateTime?
+  updatedAt DateTime? @updatedAt()
+  status InvitationStatus @default(PENDING)
+  teamRole TeamRole @default(MEMBER)
+  member User? @relation(fields: [email], references: [email], name: "membership")
+  invitedBy User? @relation(fields: [inviter], references: [email], name: "inviter")
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, email])
+  @@map("members")
 }
+
 
 model UserSubscription {
   id        String      @id @default(cuid())
