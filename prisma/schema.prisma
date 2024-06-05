@@ -12,7 +12,6 @@ datasource db {
   url               = env("DATABASE_URL")
 }
 
-
 enum SpaceUserRole {
     USER
     ADMIN
@@ -31,10 +30,6 @@ enum SubscriptionType {
     PREMIUM
 }
 
-enum VoteType {
-  UP
-  DOWN
-}
 
 enum TeamRole {
     MEMBER
@@ -163,53 +158,45 @@ model DirectMessage {
 
 model User {
   id                  String         @id @default(uuid())
-  clerkId             String?         @unique
+  clerkId             String?        @unique
   name                String?
   email               String         @unique
   profileImage        String?
   tier                String?        @default("Free")
   credits             String?        @default("10")
   username            String?        @unique @default(uuid())
-
-  bio      String?   @db.Text
-    links Link[]
-  listings Listing[]
-
-  posts    Post[]
-  likes    Like[]
-  comments Comment[]
-    saved         SavedPost[]
-      mylikes           Post[]  @relation("PostLikes")
-
-    followedBy    Follows[]   @relation("following")
-    following     Follows[]   @relation("follower")
-
-emailVerified                 DateTime?   @map("email_verified")
-  emailVerificationToken        String?     @unique @map("email_verification_token")
-  passwordHash                  String?     @map("password_hash")
-  resetPasswordToken            String?     @unique @map("reset_password_token")
-  resetPasswordTokenExpiry      DateTime?   @map("reset_password_token_expiery")
-      image         String?
-  password      String?
-  role          Role @default(SUBACCOUNT_USER)
-  isTwoFactorEnabled Boolean @default(false)
-  twoFactorConfirmation TwoFactorConfirmation?  
+  bio                 String?        @db.Text
+  links               Link[]
+  listings            Listing[]
+  posts               Post[]
+  likes               Like[]
+  comments            Comment[]
+  saved               SavedPost[]
+  mylikes             Post[]         @relation("PostLikes")
+  followedBy          Follows[]      @relation("following")
+  following           Follows[]      @relation("follower")
+  emailVerified       DateTime?      @map("email_verified")
+  emailVerificationToken String?     @unique @map("email_verification_token")
+  passwordHash        String?        @map("password_hash")
+  resetPasswordToken  String?        @unique @map("reset_password_token")
+  resetPasswordTokenExpiry DateTime? @map("reset_password_token_expiery")
+  image               String?
+  password            String?
+  role                Role           @default(SUBACCOUNT_USER)
+  isTwoFactorEnabled  Boolean       @default(false)
+  twoFactorConfirmation TwoFactorConfirmation?
   website             String?
   gender              String?
-    userCode String? @unique() @default(cuid())
-  avatarUrl    String?         @db.Text
-
-    Admin    Admin?
-    Reporter Reporter?
-
-    Feedbacks     Feedback[]
-    CreditBalance CreditBalance?
-
-    projects ProjectUsers[]
-    blueprints Blueprint[]
-    
-    MyEditors       Editor[] @relation("myEditors")
-    FavoriteEditors Editor[] @relation("favoriteEditors")
+  userCode            String?        @unique() @default(cuid())
+  avatarUrl           String?        @db.Text
+  Admin               Admin?
+  Reporter            Reporter?
+  Feedbacks           Feedback[]
+  CreditBalance       CreditBalance?
+  projects            ProjectUsers[]
+  blueprints          Blueprint[]
+  MyEditors           Editor[]       @relation("myEditors")
+  FavoriteEditors     Editor[]       @relation("favoriteEditors")
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
   accounts            Account[]
@@ -220,9 +207,7 @@ emailVerified                 DateTime?   @map("email_verified")
   apiKeyId            String?
   membership          Member[]       @relation("membership")
   invitedMembers      Member[]       @relation("inviter")
-
-      sites         Site[]
-
+  sites               Site[]
   domains             Domain[]
   spaces              SpaceUser[]
   lists               List[]
@@ -234,20 +219,37 @@ emailVerified                 DateTime?   @map("email_verified")
   Slack               Slack[]
   connections         Connections[]
   workflows           Workflows[]
-    agencyId     String?
-  Agency       Agency?        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  Permissions  Permissions[]
-  Ticket       Ticket[]
-  Notification Notification[]
-
-    customerPayment CustomerPayment?
-  Product Product[]
-
-
-
+  agencyId            String?
+  Agency              Agency?        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  Permissions         Permissions[]
+  Ticket              Ticket[]
+  Notification        Notification[]
+  customerPayment     CustomerPayment?
+  Product             Product[]
   @@index([agencyId])
   @@index([id, username])
   @@map("users")
+  // New relations
+  preferences         Preference[]
+  activityLogs        ActivityLog[]
+  userSegments        UserSegment[]
+  analytics           Analytics[]
+  segments  Segment[] @relation("UserSegment")
+  supportTickets      SupportTicket[]
+  events              Event[]
+  onboardingSteps     OnboardingStep[]
+  verifications       Verification[]
+  imports             Import[]
+  exports             Export[]
+  passwordRecoveries  PasswordRecovery[]
+  registrations       Registration[]
+  GDPRCompliances     GDPRCompliance[]
+  engagementMetrics   EngagementMetrics[]
+  activityStreams     ActivityStream[]
+  gamifications       Gamification[]
+  reputations         Reputation[]
+  localizations       Localization[]
+  demographics        Demographics[]
 }
 
 model Listing {
@@ -475,7 +477,6 @@ model Session {
 
 model VerificationToken {
     id String @id @default(cuid())
-  email String
   identifier String
   token      String   @unique
   expires    DateTime
@@ -1303,7 +1304,83 @@ model Workspace {
     @@unique([workspaceCode, inviteCode])
     @@map("workspaces")
 }
+model Board {
+  id            String @id @default(uuid())
+  orgId         String
+  title         String
+  imageId       String
+  imageThumbUrl String @db.Text
+  imageFullUrl  String @db.Text
+  imageUserName String @db.Text
+  imageLinkHTML String @db.Text
 
+  lists         List[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+
+model Card {
+  id          String @id @default(uuid())
+  title       String
+  order       Int
+  description String? @db.Text
+
+  listId      String?
+  list        List?  @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([listId])
+}
+
+enum ACTION {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum ENTITY_TYPE {
+  BOARD
+  LIST
+  CARD
+}
+
+model AuditLog {
+  id          String  @id @default(uuid())
+  orgId       String
+  action      ACTION
+  entityId    String
+  entityType  ENTITY_TYPE
+  entityTitle String
+  userId      String
+  userImage   String @db.Text
+  userName    String @db.Text
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model OrgLimit {
+  id          String @id @default(uuid())
+  orgId       String @unique
+  count       Int @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model OrgSubscription {
+  id                String @id @default(uuid())
+  orgId             String @unique
+
+  stripeCustomerId  String? @unique @map(name: "stripe_customer_id")
+  stripeSubscriptionId String? @unique @map(name: "stripe_subscription_id")
+  stripePriceId        String? @map(name: "stripe_price_id")
+  stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
+}
 /// @@deny('all', auth() == null)
 /// @@allow('read', owner == auth() || (space.members ? [user == auth()] && !private))
 /// @@allow('create', owner == auth() && space.members ? [user == auth()])
@@ -1313,13 +1390,21 @@ model List {
     id String @id() @default(uuid())
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt()
-    space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-    spaceId String
+    space Space? @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+    spaceId String?
     owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
     ownerId String
     /// @length(1, 100)
-    title String
-    private Boolean @default(false)
+  title     String
+  order     Int
+
+  boardId   String?
+  board     Board? @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  cards     Card[]
+
+
+  @@index([boardId])
 }
 
 /// @@deny('all', auth() == null)
@@ -1727,6 +1812,1092 @@ model orders {
 model Campaigns {
   id        String      @id @default(cuid()) 
 }
+
+
+
+
+model Survey {
+  id        String   @id @default(uuid())
+  // Define survey fields
+}
+
+
+// Define remaining models
+
+// Content Creation
+model ContentCreation {
+  id        String   @id @default(uuid())
+  // Define content creation fields
+}
+
+// Content Categorization
+model ContentCategorization {
+  id        String   @id @default(uuid())
+  // Define content categorization fields
+}
+
+// Content Moderation
+model ContentModeration {
+  id        String   @id @default(uuid())
+  // Define content moderation fields
+}
+
+// Content Analytics
+model ContentAnalytics {
+  id        String   @id @default(uuid())
+  // Define content analytics fields
+}
+
+// Content Monetization
+model ContentMonetization {
+  id        String   @id @default(uuid())
+  // Define content monetization fields
+}
+
+// Content Distribution
+model ContentDistribution {
+  id        String   @id @default(uuid())
+  // Define content distribution fields
+}
+
+// Content Versioning
+model ContentVersioning {
+  id        String   @id @default(uuid())
+  // Define content versioning fields
+}
+
+// Content Tagging
+model ContentTagging {
+  id        String   @id @default(uuid())
+  // Define content tagging fields
+}
+
+// Content Filtering
+model ContentFiltering {
+  id        String   @id @default(uuid())
+  // Define content filtering fields
+}
+
+// Content Recommendations
+model ContentRecommendations {
+  id        String   @id @default(uuid())
+  // Define content recommendations fields
+}
+
+// Content Import/Export
+model ContentImportExport {
+  id        String   @id @default(uuid())
+  // Define content import/export fields
+}
+
+// Content Search and Discovery
+model ContentSearchDiscovery {
+  id        String   @id @default(uuid())
+  // Define content search and discovery fields
+}
+
+// Content Licensing Management
+model ContentLicensingManagement {
+  id        String   @id @default(uuid())
+  // Define content licensing management fields
+}
+
+// Content Collaboration
+model ContentCollaboration {
+  id        String   @id @default(uuid())
+  // Define content collaboration fields
+}
+
+// Content Archiving
+model ContentArchiving {
+  id        String   @id @default(uuid())
+  // Define content archiving fields
+}
+
+// Content Sharing
+model ContentSharing {
+  id        String   @id @default(uuid())
+  // Define content sharing fields
+}
+
+// Content Personalization
+model ContentPersonalization {
+  id        String   @id @default(uuid())
+  // Define content personalization fields
+}
+
+// Content Accessibility Features
+model ContentAccessibilityFeatures {
+  id        String   @id @default(uuid())
+  // Define content accessibility features fields
+}
+
+// Content Embedding
+model ContentEmbedding {
+  id        String   @id @default(uuid())
+  // Define content embedding fields
+}
+
+// Content SEO Optimization
+model ContentSEOOptimization {
+  id        String   @id @default(uuid())
+  // Define content SEO optimization fields
+}
+
+// Product Management
+model ProductManagement {
+  id        String   @id @default(uuid())
+  // Define product management fields
+}
+
+// Shopping Cart and Checkout
+model ShoppingCartCheckout {
+  id        String   @id @default(uuid())
+  // Define shopping cart and checkout fields
+}
+
+// Order Processing
+model OrderProcessing {
+  id        String   @id @default(uuid())
+  // Define order processing fields
+}
+
+// Payment Processing
+model PaymentProcessing {
+  id        String   @id @default(uuid())
+  // Define payment processing fields
+}
+
+// Customer Support
+model CustomerSupport {
+  id        String   @id @default(uuid())
+  // Define customer support fields
+}
+
+// Sales Analytics
+model SalesAnalytics {
+  id        String   @id @default(uuid())
+  // Define sales analytics fields
+}
+
+// Inventory Management
+model InventoryManagement {
+  id        String   @id @default(uuid())
+  // Define inventory management fields
+}
+
+// Shipping and Logistics
+model ShippingLogistics {
+  id        String   @id @default(uuid())
+  // Define shipping and logistics fields
+}
+
+// Returns and Refunds
+model ReturnsRefunds {
+  id        String   @id @default(uuid())
+  // Define returns and refunds fields
+}
+
+// Tax Management
+model TaxManagement {
+  id        String   @id @default(uuid())
+  // Define tax management fields
+}
+
+// Coupons and Discounts
+model CouponsDiscounts {
+  id        String   @id @default(uuid())
+  // Define coupons and discounts fields
+}
+
+// Affiliate Marketing
+model AffiliateMarketing {
+  id        String   @id @default(uuid())
+  // Define affiliate marketing fields
+}
+
+// Multi-currency Support
+model MultiCurrencySupport {
+  id        String   @id @default(uuid())
+  // Define multi-currency support fields
+}
+
+// Multi-language Support
+model MultiLanguageSupport {
+  id        String   @id @default(uuid())
+  // Define multi-language support fields
+}
+
+// Product Recommendations
+model ProductRecommendations {
+  id        String   @id @default(uuid())
+  // Define product recommendations fields
+}
+
+
+
+
+// Authentication
+model Authentication {
+  id        String   @id @default(uuid())
+  // Define authentication fields
+}
+
+// Permissions and Roles
+model PermissionsRoles {
+  id        String   @id @default(uuid())
+  // Define permissions and roles fields
+}
+
+// Preferences
+model Preferences {
+  id        String   @id @default(uuid())
+  // Define preferences fields
+}
+
+// Subscription and Billing
+model SubscriptionBilling {
+  id        String   @id @default(uuid())
+  // Define subscription and billing fields
+}
+
+// Activity Logging
+model ActivityLogging {
+  id        String   @id @default(uuid())
+  // Define activity logging fields
+}
+
+// Messaging and Notifications
+model MessagingNotifications {
+  id        String   @id @default(uuid())
+  // Define messaging and notifications fields
+}
+
+// User Groups
+model UserGroups {
+  id        String   @id @default(uuid())
+  // Define user groups fields
+}
+
+// User Segmentation
+model UserSegmentation {
+  id        String   @id @default(uuid())
+  // Define user segmentation fields
+}
+
+// User Analytics
+model UserAnalytics {
+  id        String   @id @default(uuid())
+  // Define user analytics fields
+}
+
+// User Feedback and Surveys
+model UserFeedbackSurveys {
+  id        String   @id @default(uuid())
+  // Define user feedback and surveys fields
+}
+
+// User Reviews and Ratings
+model UserReviewsRatings {
+  id        String   @id @default(uuid())
+  // Define user reviews and ratings fields
+}
+
+// User Event Tracking
+model UserEventTracking {
+  id        String   @id @default(uuid())
+  // Define user event tracking fields
+}
+
+// User Preferences
+model UserPreferences {
+  id        String   @id @default(uuid())
+  // Define user preferences fields
+}
+
+// User Dashboard
+model UserDashboard {
+  id        String   @id @default(uuid())
+  // Define user dashboard fields
+}
+
+// User Settings
+model UserSettings {
+  id        String   @id @default(uuid())
+  // Define user settings fields
+}
+
+// User Onboarding
+model UserOnboarding {
+  id        String   @id @default(uuid())
+  // Define user onboarding fields
+}
+
+// User Verification
+model UserVerification {
+  id        String   @id @default(uuid())
+  // Define user verification fields
+}
+
+// User Import/Export
+model UserImportExport {
+  id        String   @id @default(uuid())
+  // Define user import/export fields
+}
+
+// User Password Recovery
+model UserPasswordRecovery {
+  id        String   @id @default(uuid())
+  // Define user password recovery fields
+}
+
+// User Registration
+model UserRegistration {
+  id        String   @id @default(uuid())
+  // Define user registration fields
+}
+
+// User Data Protection (GDPR Compliance)
+model UserDataProtection {
+  id        String   @id @default(uuid())
+  // Define user data protection fields
+}
+
+// User Engagement Metrics
+model UserEngagementMetrics {
+  id        String   @id @default(uuid())
+  // Define user engagement metrics fields
+}
+
+// User Activity Streams
+model UserActivityStreams {
+  id        String   @id @default(uuid())
+  // Define user activity streams fields
+}
+
+// User Gamification
+model UserGamification {
+  id        String   @id @default(uuid())
+  // Define user gamification fields
+}
+
+// User Reputation Management
+model UserReputationManagement {
+  id        String   @id @default(uuid())
+  // Define user reputation management fields
+}
+
+// User Session Management
+model UserSessionManagement {
+  id        String   @id @default(uuid())
+  // Define user session management fields
+}
+
+// User Localization
+model UserLocalization {
+  id        String   @id @default(uuid())
+  // Define user localization fields
+}
+
+// User Demographics Tracking
+model UserDemographicsTracking {
+  id        String   @id @default(uuid())
+  // Define user demographics tracking fields
+}
+
+// Customer Relationship Management (CRM)
+model CRM {
+  id        String   @id @default(uuid())
+  // Define CRM fields
+}
+
+// Customer Segmentation
+model CustomerSegmentation {
+  id        String   @id @default(uuid())
+  // Define customer segmentation fields
+}
+
+// Customer Engagement
+model CustomerEngagement {
+  id        String   @id @default(uuid())
+  // Define customer engagement fields
+}
+
+// Customer Retention
+model CustomerRetention {
+  id        String   @id @default(uuid())
+  // Define customer retention fields
+}
+
+// Customer Satisfaction
+model CustomerSatisfaction {
+  id        String   @id @default(uuid())
+  // Define customer satisfaction fields
+}
+
+// Customer Feedback
+model CustomerFeedback {
+  id        String   @id @default(uuid())
+  // Define customer feedback fields
+}
+
+// Customer Loyalty
+model CustomerLoyalty {
+  id        String   @id @default(uuid())
+  // Define customer loyalty fields
+}
+
+// Customer Lifetime Value (CLV)
+model CLV {
+  id        String   @id @default(uuid())
+  // Define CLV fields
+}
+
+// Customer Support Tickets
+model CustomerSupportTickets {
+  id        String   @id @default(uuid())
+  // Define customer support tickets fields
+}
+
+// Customer Service Channels
+model CustomerServiceChannels {
+  id        String   @id @default(uuid())
+  // Define customer service channels fields
+}
+
+// Customer Communication
+model CustomerCommunication {
+  id        String   @id @default(uuid())
+  // Define customer communication fields
+}
+
+// Customer Experience (CX)
+model CX {
+  id        String   @id @default(uuid())
+  // Define CX fields
+}
+
+// Customer Analytics
+model CustomerAnalytics {
+  id        String   @id @default(uuid())
+  // Define customer analytics fields
+}
+
+// Customer Journey Mapping
+model CustomerJourneyMapping {
+  id        String   @id @default(uuid())
+  // Define customer journey mapping fields
+}
+
+// Customer Surveys
+model CustomerSurveys {
+  id        String   @id @default(uuid())
+  // Define customer surveys fields
+}
+
+// Customer Preferences
+model CustomerPreferences {
+  id        String   @id @default(uuid())
+  // Define customer preferences fields
+}
+
+// Customer Personalization
+model CustomerPersonalization {
+  id        String   @id @default(uuid())
+  // Define customer personalization fields
+}
+
+// Customer Data Management
+model CustomerDataManagement {
+  id        String   @id @default(uuid())
+  // Define customer data management fields
+}
+
+// Customer Insights
+model CustomerInsights {
+  id        String   @id @default(uuid())
+  // Define customer insights fields
+}
+
+// Customer Feedback Analysis
+model CustomerFeedbackAnalysis {
+  id        String   @id @default(uuid())
+  // Define customer feedback analysis fields
+}
+
+// Campaign Management
+model CampaignManagement {
+  id        String   @id @default(uuid())
+  // Define campaign management fields
+}
+
+// Advertising Platforms Integration
+model AdvertisingPlatformsIntegration {
+  id        String   @id @default(uuid())
+  // Define advertising platforms integration fields
+}
+
+// Marketing Automation
+model MarketingAutomation {
+  id        String   @id @default(uuid())
+  // Define marketing automation fields
+}
+
+// Lead Generation
+model LeadGeneration {
+  id        String   @id @default(uuid())
+  // Define lead generation fields
+}
+
+// Lead Nurturing
+model LeadNurturing {
+  id        String   @id @default(uuid())
+  // Define lead nurturing fields
+}
+
+// Lead Scoring
+model LeadScoring {
+  id        String   @id @default(uuid())
+  // Define lead scoring fields
+}
+
+// Lead Management
+model LeadManagement {
+  id        String   @id @default(uuid())
+  // Define lead management fields
+}
+
+// Email Marketing
+model EmailMarketing {
+  id        String   @id @default(uuid())
+  // Define email marketing fields
+}
+
+// Social Media Marketing
+model SocialMediaMarketing {
+  id        String   @id @default(uuid())
+  // Define social media marketing fields
+}
+
+// Content Marketing
+model ContentMarketing {
+  id        String   @id @default(uuid())
+  // Define content marketing fields
+}
+
+
+
+// Preferences
+model Preference {
+  id          String   @id @default(uuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  // Define preference fields
+}
+
+
+
+// Activity Logging
+model ActivityLog {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define activity log fields
+}
+
+
+model Segment {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String?
+  users     User[]   @relation("UserSegment")
+  segments  UserSegment[]
+  post      Json?
+}
+
+model UserSegment {
+  id        String   @id @default(uuid())
+  user      User?     @relation(fields: [userId], references: [id])
+  userId    String?
+  segment   Segment?  @relation(fields: [segmentId], references: [id])
+  segmentId String?
+  // Define user segment fields
+}
+
+
+// User Analytics
+model Analytics {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define analytics fields
+}
+
+
+
+
+
+
+// User Support Tickets
+model SupportTicket {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define support ticket fields
+}
+
+// User Event Tracking
+model Event {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define event fields
+}
+
+// User Onboarding
+model OnboardingStep {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define onboarding step fields
+}
+
+// User Verification
+model Verification {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define verification fields
+}
+
+// User Import/Export
+model Import {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define import fields
+}
+
+model Export {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define export fields
+}
+
+// User Password Recovery
+model PasswordRecovery {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define password recovery fields
+}
+
+// User Registration
+model Registration {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define registration fields
+}
+
+// User Data Protection (GDPR Compliance)
+model GDPRCompliance {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define GDPR compliance fields
+}
+
+// User Engagement Metrics
+model EngagementMetrics {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define engagement metrics fields
+}
+
+// User Activity Streams
+model ActivityStream {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define activity stream fields
+}
+
+// User Gamification
+model Gamification {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define gamification fields
+}
+
+// User Reputation Management
+model Reputation {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define reputation fields
+}
+
+
+// User Localization
+model Localization {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define localization fields
+}
+
+// User Demographics Tracking
+model Demographics {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  // Define demographics fields
+}
+
+// Content Creation
+model Content {
+  id        String   @id @default(uuid())
+  // Define content fields
+}
+
+
+
+// Content Moderation
+model Moderation {
+  id        String   @id @default(uuid())
+  // Define moderation fields
+}
+
+
+
+
+// Content Monetization
+model Monetization {
+  id        String   @id @default(uuid())
+  // Define monetization fields
+}
+
+// Content Distribution
+model Distribution {
+  id        String   @id @default(uuid())
+  // Define distribution fields
+}
+
+// Content Versioning
+model Version {
+  id        String   @id @default(uuid())
+  // Define version fields
+}
+
+
+
+// Content Filtering
+model Filter {
+  id        String   @id @default(uuid())
+  // Define filter fields
+}
+
+// Content Recommendations
+model Recommendation {
+  id        String   @id @default(uuid())
+  // Define recommendation fields
+}
+
+// Content Import/Export
+model ContentImport {
+  id        String   @id @default(uuid())
+  // Define content import fields
+}
+
+model ContentExport {
+  id        String   @id @default(uuid())
+  // Define content export fields
+}
+
+// Content Search and Discovery
+model Search {
+  id        String   @id @default(uuid())
+  // Define search fields
+}
+
+model Discovery {
+  id        String   @id @default(uuid())
+  // Define discovery fields
+}
+
+// Content Licensing Management
+model Licensing {
+  id        String   @id @default(uuid())
+  // Define licensing fields
+}
+
+// Content Collaboration
+model Collaboration {
+  id        String   @id @default(uuid())
+  // Define collaboration fields
+}
+
+// Content Archiving
+model Archive {
+  id        String   @id @default(uuid())
+  // Define archive fields
+}
+
+// Content Sharing
+model Sharing {
+  id        String   @id @default(uuid())
+  // Define sharing fields
+}
+
+// Content Personalization
+model Personalization {
+  id        String   @id @default(uuid())
+  // Define personalization fields
+}
+
+// Content Accessibility Features
+model Accessibility {
+  id        String   @id @default(uuid())
+  // Define accessibility fields
+}
+
+// Content Embedding
+model Embedding {
+  id        String   @id @default(uuid())
+  // Define embedding fields
+}
+
+// Content SEO Optimization
+model SEO {
+  id        String   @id @default(uuid())
+  // Define SEO fields
+}
+
+// E-commerce: Product Management
+model EcommerceProduct {
+  id        String   @id @default(uuid())
+  // Define e-commerce product fields
+}
+
+
+
+// Payment Processing
+model Payment {
+  id        String   @id @default(uuid())
+  // Define payment fields
+}
+
+
+
+
+// Inventory Management
+model Inventory {
+  id        String   @id @default(uuid())
+  // Define inventory fields
+}
+
+// Shipping and Logistics
+model Shipping {
+  id        String   @id @default(uuid())
+  // Define shipping fields
+}
+
+// Returns and Refunds
+model Returns {
+  id        String   @id @default(uuid())
+  // Define returns fields
+}
+
+// Tax Management
+model Tax {
+  id        String   @id @default(uuid())
+  // Define tax fields
+}
+
+// Coupons and Discounts
+model Coupons {
+  id        String   @id @default(uuid())
+  // Define coupons fields
+}
+
+// Affiliate Marketing
+model Affiliate {
+  id        String   @id @default(uuid())
+  // Define affiliate fields
+}
+
+// Multi-currency Support
+model MultiCurrency {
+  id        String   @id @default(uuid())
+  // Define multi-currency fields
+}
+
+// Multi-language Support
+model MultiLanguage {
+  id        String   @id @default(uuid())
+  // Define multi-language fields
+}
+
+
+
+// Product Reviews
+model ProductReview {
+  id        String   @id @default(uuid())
+  // Define product review fields
+}
+
+// Product Comparison
+model ProductComparison {
+  id        String   @id @default(uuid())
+  // Define product comparison fields
+}
+
+// Product Bundling
+model ProductBundling {
+  id        String   @id @default(uuid())
+  // Define product bundling fields
+}
+
+// Subscription Management
+model SubscriptionManagement {
+  id        String   @id @default(uuid())
+  // Define subscription management fields
+}
+
+// Loyalty Programs
+model LoyaltyPrograms {
+  id        String   @id @default(uuid())
+  // Define loyalty program fields
+}
+
+
+
+// Customer Segmentation
+model Segmentation {
+  id        String   @id @default(uuid())
+  // Define segmentation fields
+}
+
+// Customer Engagement
+model Engagement {
+  id        String   @id @default(uuid())
+  // Define engagement fields
+}
+
+// Customer Retention
+model Retention {
+  id        String   @id @default(uuid())
+  // Define retention fields
+}
+
+// Customer Satisfaction
+model Satisfaction {
+  id        String   @id @default(uuid())
+  // Define satisfaction fields
+}
+
+
+
+// Customer Loyalty
+model Loyalty {
+  id        String   @id @default(uuid())
+  // Define loyalty fields
+}
+
+
+
+// Customer Support Tickets
+model SupportTickets {
+  id        String   @id @default(uuid())
+  // Define support tickets fields
+}
+
+// Customer Service Channels
+model ServiceChannels {
+  id        String   @id @default(uuid())
+  // Define service channels fields
+}
+
+// Customer Communication
+model Communication {
+  id        String   @id @default(uuid())
+  // Define communication fields
+}
+
+
+
+// Customer Journey Mapping
+model JourneyMap {
+  id        String   @id @default(uuid())
+  // Define journey mapping fields
+}
+
+// Customer Surveys
+model Surveys {
+  id        String   @id @default(uuid())
+  // Define surveys fields
+}
+
+
+
+
+
+// Customer Data Management
+model DataManagement {
+  id        String   @id @default(uuid())
+  // Define data management fields
+}
+
+// Customer Insights
+model Insights {
+  id        String   @id @default(uuid())
+  // Define insights fields
+}
+
+// Customer Feedback Analysis
+model FeedbackAnalysis {
+  id        String   @id @default(uuid())
+  // Define feedback analysis fields
+}
+
+
+
+// Advertising Platforms Integration
+model AdvertisingPlatforms {
+  id        String   @id @default(uuid())
+  // Define advertising platforms fields
+}
+
+
+
+// Content Accessibility Features
+model ContentAccessibility {
+  id        String   @id @default(uuid())
+  // Define content accessibility fields
+}
+
+
+
+// Content SEO Optimization
+model ContentSEO {
+  id        String   @id @default(uuid())
+  // Define content SEO optimization fields
+}
+
+
+
+// Product Reviews
+model ProductReviews {
+  id        String   @id @default(uuid())
+  // Define product reviews fields
+}
+
+
+
 
 enum Icon {
   settings
