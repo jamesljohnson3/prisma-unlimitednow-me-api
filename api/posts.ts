@@ -2,13 +2,14 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { VercelRequest, VercelResponse } from '@vercel/node'
 
 type VercelRequestQuery = {
-  id?: string
+  userId?: string
 }
 
-export default async function (req: VercelRequest, res: VercelResponse) {
+const prisma = new PrismaClient()
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    const { id } = req.query as VercelRequestQuery
-    const prisma = new PrismaClient()
+    const { userId } = req.query as VercelRequestQuery
 
     console.log(
       '[account] Incoming request:',
@@ -25,39 +26,57 @@ export default async function (req: VercelRequest, res: VercelResponse) {
 
     switch (req.method) {
       case 'GET':
-        return res.json(
-          await prisma.post.findMany({
-            where: { id },
-          }),
-        )
-      case 'POST':
-        return res.json(
-          await prisma.post.create({
-            data: req.body as Prisma.AccountCreateInput,
-          }),
-        )
-      case 'PUT':
-        return res.json(
-          await prisma.post.update({
-            where: {
-              id,
+        if (userId) {
+          const posts = await prisma.post.findMany({
+            where: { userId },
+            include: {
+              author: true,
+              comments: true,
+              tags: true,
+              images: true,
+              Video: true,
+              site: true,
+              likes: true,
+              savedBy: true,
             },
-            data: req.body as Prisma.AccountUpdateInput,
-          }),
-        )
-      case 'DELETE':
-        return res.json(
-          await prisma.post.delete({
+          })
+          return res.json(posts)
+        } else {
+          return res.status(400).json({ message: 'Missing userId for fetching posts' })
+        }
+      case 'POST':
+        const createdPost = await prisma.post.create({
+          data: req.body as Prisma.PostCreateInput,
+        })
+        return res.status(201).json(createdPost)
+      case 'PUT':
+        const { id } = req.body
+        if (id) {
+          const updatedPost = await prisma.post.update({
             where: { id },
-          }),
-        )
+            data: req.body as Prisma.PostUpdateInput,
+          })
+          return res.json(updatedPost)
+        } else {
+          return res.status(400).json({ message: 'Missing id for updating post' })
+        }
+      case 'DELETE':
+        const deleteId = req.body.id
+        if (deleteId) {
+          const deletedPost = await prisma.post.delete({
+            where: { id: deleteId },
+          })
+          return res.json(deletedPost)
+        } else {
+          return res.status(400).json({ message: 'Missing id for deleting post' })
+        }
+      default:
+        return res.status(405).json({ message: `Method ${req.method} not allowed` })
     }
-
-    return res
-      .status(400)
-      .send({ message: `Unexpected request method: ${req.method}` })
   } catch (e: any) {
     console.error('[account] Error responding:', e)
     return res.status(500).json({ message: e?.message || e })
+  } finally {
+    await prisma.$disconnect()
   }
 }
