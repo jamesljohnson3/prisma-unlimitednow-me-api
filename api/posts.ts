@@ -30,7 +30,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const posts = await prisma.post.findMany({
             where: { userId },
             include: {
-              author: true,
               comments: true,
               tags: true,
               images: true,
