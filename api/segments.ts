@@ -24,14 +24,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ),
     )
 
-    switch (req.method) {
+     switch (req.method) {
       case 'GET':
         if (userId) {
-          // Fetch user segments including all segment fields
+          // Fetch user segments including all segment fields and related product data
           const userSegments = await prisma.userSegment.findMany({
             where: { userId }, // Filter by userId
             include: {
-              segment: true, // Include all fields from the Segment model
+              segment: {
+                include: {
+                  product: true, // Include all fields from the Product model
+                },
+              },
             },
           })
           return res.json(userSegments)
