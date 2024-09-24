@@ -3,7 +3,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node'
 
 type VercelRequestQuery = {
   userId?: string
-  segmentId?: string
+  segmentId?:string
 }
 
 const prisma = new PrismaClient()
@@ -25,34 +25,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ),
     )
 
- 
-    switch (req.method) {
+     switch (req.method) {
       case 'GET':
         if (userId && segmentId) {
-          // Fetch the user and their specific segment including product information
-          const user = await prisma.user.findUnique({
-            where: { id: userId as string }, // Find user by userId
+          // Fetch user segments including all segment fields and related product data
+          const userSegments = await prisma.userSegment.findMany({
+            where: {
+              userId: userId as string,  // Ensure it matches the provided userId
+              segmentId: segmentId as string,  // Find by segmentId
+            },
             include: {
-              Segment: {
-                where: { id: segmentId as string }, // Filter by segmentId
+              segment: {
                 include: {
-                  product: true, // Include related product data in the segment
+                  product: true, // Include all fields from the Product model
                 },
               },
             },
           });
 
-         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-          }
-
-      
-
-          // Return the user along with the segment and product information
-          return res.status(200).json(user);
+          return res.json(userSegments)
         } else {
-          return res.status(400).json({ message: 'Missing userId or segmentId for fetching segment' });
+          return res.status(400).json({ message: 'Missing userId for fetching segments' })
         }
+
       case 'POST':
         const createdSegment = await prisma.segment.create({
           data: req.body as Prisma.SegmentCreateInput,
