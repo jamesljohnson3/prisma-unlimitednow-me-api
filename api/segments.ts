@@ -46,9 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(404).json({ message: 'User not found' });
           }
 
-          if (user.segments.length === 0) {
-            return res.status(404).json({ message: 'Segment not found for the given userId and segmentId' });
-          }
+      
 
           // Return the user along with the segment and product information
           return res.status(200).json(user);
