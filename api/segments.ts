@@ -3,13 +3,14 @@ import { VercelRequest, VercelResponse } from '@vercel/node'
 
 type VercelRequestQuery = {
   userId?: string
+  segmentId?: string
 }
 
 const prisma = new PrismaClient()
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    const { userId } = req.query as VercelRequestQuery
+    const { userId, segmentId } = req.query as VercelRequestQuery
 
     console.log(
       '[account] Incoming request:',
@@ -24,23 +25,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ),
     )
 
-     switch (req.method) {
+ 
+    switch (req.method) {
       case 'GET':
-        if (userId) {
-          // Fetch user segments including all segment fields and related product data
-          const userSegments = await prisma.userSegment.findMany({
-            where: { userId }, // Filter by userId
+        if (userId && segmentId) {
+          // Use findUnique with a composite condition on userId and segmentId
+          const userSegment = await prisma.userSegment.findUnique({
+            where: {
+              // Composite unique filter based on both userId and segmentId
+              userId_segmentId: {
+                userId: userId as string,   // Cast query params to string
+                segmentId: segmentId as string, // Assuming segmentId is also a string
+              },
+            },
             include: {
               segment: {
                 include: {
-                  product: true, // Include all fields from the Product model
+                  product: true, // Include product data
                 },
               },
             },
-          })
-          return res.json(userSegments)
+          });
+
+          if (!userSegment) {
+            return res.status(404).json({ message: 'Segment not found for the given userId and segmentId' });
+          }
+
+          return res.status(200).json(userSegment);
         } else {
-          return res.status(400).json({ message: 'Missing userId for fetching segments' })
+          return res.status(400).json({ message: 'Missing userId or segmentId for fetching segment' });
         }
 
       case 'POST':
