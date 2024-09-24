@@ -29,33 +29,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (req.method) {
       case 'GET':
         if (userId && segmentId) {
-          // Use findUnique with a composite condition on userId and segmentId
-          const userSegment = await prisma.userSegment.findUnique({
-            where: {
-              // Composite unique filter based on both userId and segmentId
-              userId_segmentId: {
-                userId: userId as string,   // Cast query params to string
-                segmentId: segmentId as string, // Assuming segmentId is also a string
-              },
-            },
+          // Fetch the user and their specific segment including product information
+          const user = await prisma.user.findUnique({
+            where: { id: userId as string }, // Find user by userId
             include: {
-              segment: {
+              segments: {
+                where: { id: segmentId as string }, // Filter by segmentId
                 include: {
-                  product: true, // Include product data
+                  product: true, // Include related product data in the segment
                 },
               },
             },
           });
 
-          if (!userSegment) {
+         if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+          }
+
+          if (user.segments.length === 0) {
             return res.status(404).json({ message: 'Segment not found for the given userId and segmentId' });
           }
 
-          return res.status(200).json(userSegment);
+          // Return the user along with the segment and product information
+          return res.status(200).json(user);
         } else {
           return res.status(400).json({ message: 'Missing userId or segmentId for fetching segment' });
         }
-
       case 'POST':
         const createdSegment = await prisma.segment.create({
           data: req.body as Prisma.SegmentCreateInput,
