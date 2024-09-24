@@ -1,10 +1,16 @@
 import { PrismaClient, Prisma } from '@prisma/client'
 import { VercelRequest, VercelResponse } from '@vercel/node'
 
+type VercelRequestQuery = {
+  userId?: string
+}
+
 const prisma = new PrismaClient()
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
+    const { userId } = req.query as VercelRequestQuery
+
     console.log(
       '[account] Incoming request:',
       JSON.stringify(
@@ -20,15 +26,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     switch (req.method) {
       case 'GET':
-        // Fetch all segments
-        const segments = await prisma.segment.findMany({
-          include: {
-            users: true,  // Include associated users
-            domain: true, // Include associated domain
-            // Add more related models here if needed
-          },
-        })
-        return res.json(segments)
+        if (userId) {
+          // Fetch user segments including all segment fields
+          const userSegments = await prisma.userSegment.findMany({
+            where: { userId }, // Filter by userId
+            include: {
+              segment: true, // Include all fields from the Segment model
+            },
+          })
+          return res.json(userSegments)
+        } else {
+          return res.status(400).json({ message: 'Missing userId for fetching segments' })
+        }
 
       case 'POST':
         const createdSegment = await prisma.segment.create({
