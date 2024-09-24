@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const user = await prisma.user.findUnique({
             where: { id: userId as string }, // Find user by userId
             include: {
-              segments: {
+              segment: {
                 where: { id: segmentId as string }, // Filter by segmentId
                 include: {
                   product: true, // Include related product data in the segment
