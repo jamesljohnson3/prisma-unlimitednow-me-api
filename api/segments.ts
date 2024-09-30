@@ -19,15 +19,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     switch (req.method) {
-      case 'GET':
-        // Validate userId and segmentId
+      case 'GET': {
+        // Validate userId
         if (!userId) {
-          return res.status(400).json({ message: 'Missing userId for fetching segments' });
+          return res.status(400).json({ error: 'userId is required.' });
         }
 
-        // Fetch segments for the user
+        // Fetch segments for the user based on userId
         const userSegments = await prisma.userSegment.findMany({
-          where: { userId },
+          where: { userId }, // Filter by userId
           include: {
             segment: {
               include: {
@@ -37,50 +37,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         });
 
-        // Filter segments based on segmentId and slug match
+        // If segmentId is provided, filter based on slug match
         const matchedSegments = userSegments.filter((userSegment: { segment: any; }) => {
           const segment = userSegment.segment;
-          return segment.id === segmentId || segment.slug.includes(segmentId);
+          return segment.slug && segment.slug.includes(segmentId || ''); // Match by slug inclusion
         });
 
-        // Return matched segments
-        return res.status(200).json(matchedSegments);
+        // Return matched segments or a 404 if none are found
+        if (matchedSegments.length === 0) {
+          return res.status(404).json({ message: 'No segments found matching the criteria.' });
+        }
 
-      case 'POST':
+        return res.status(200).json(matchedSegments);
+      }
+
+      case 'POST': {
         const createdSegment = await prisma.segment.create({
           data: req.body as Prisma.SegmentCreateInput,
         });
         return res.status(201).json(createdSegment);
+      }
 
-      case 'PUT':
+      case 'PUT': {
         const { id } = req.body;
-        if (id) {
-          const updatedSegment = await prisma.segment.update({
-            where: { id },
-            data: req.body as Prisma.SegmentUpdateInput,
-          });
-          return res.json(updatedSegment);
-        } else {
+        if (!id) {
           return res.status(400).json({ message: 'Missing id for updating segment' });
         }
 
-      case 'DELETE':
+        const updatedSegment = await prisma.segment.update({
+          where: { id },
+          data: req.body as Prisma.SegmentUpdateInput,
+        });
+        return res.json(updatedSegment);
+      }
+
+      case 'DELETE': {
         const deleteId = req.body.id;
-        if (deleteId) {
-          const deletedSegment = await prisma.segment.delete({
-            where: { id: deleteId },
-          });
-          return res.json(deletedSegment);
-        } else {
+        if (!deleteId) {
           return res.status(400).json({ message: 'Missing id for deleting segment' });
         }
+
+        const deletedSegment = await prisma.segment.delete({
+          where: { id: deleteId },
+        });
+        return res.json(deletedSegment);
+      }
 
       default:
         return res.status(405).json({ message: `Method ${req.method} not allowed` });
     }
-  } catch (e: any) {
-    console.error('[account] Error responding:', e);
-    return res.status(500).json({ message: e?.message || e });
+  } catch (error: any) {
+    console.error('[account] Error responding:', error);
+    return res.status(500).json({ message: error?.message || error });
   } finally {
     await prisma.$disconnect();
   }
