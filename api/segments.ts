@@ -3,7 +3,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node'
 
 type VercelRequestQuery = {
   userId?: string
-  segmentId?: string
+  segmentId?:string
 }
 
 const prisma = new PrismaClient()
@@ -25,40 +25,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ),
     )
 
-    switch (req.method) {
+     switch (req.method) {
       case 'GET':
         if (userId && segmentId) {
-          // Fetch user segments that match the provided userId and segmentId
+          // Fetch user segments including all segment fields and related product data
           const userSegments = await prisma.userSegment.findMany({
             where: {
-              userId: userId as string,
-              segmentId: segmentId as string,
+              userId: userId as string,  // Ensure it matches the provided userId
+              segmentId: segmentId as string,  // Find by segmentId
             },
             include: {
               segment: {
                 include: {
-                  product: true, // Include related products
+                  product: true, // Include all fields from the Product model
                 },
               },
             },
           });
 
-          // Ensure we have valid user segments and return the result
-          const filteredSegments = userSegments.map((userSegment: { segment: { product: any } }) => {
-            const products = userSegment.segment?.product ? [userSegment.segment.product] : [];
-
-            return {
-              ...userSegment,
-              segment: {
-                ...userSegment.segment,
-                products, // Filtered products based on the relationship
-              },
-            };
-          });
-
-          return res.json(filteredSegments);
+          return res.json(userSegments)
         } else {
-          return res.status(400).json({ message: 'Missing userId or segmentId for fetching segments' });
+          return res.status(400).json({ message: 'Missing userId for fetching segments' })
         }
 
       case 'POST':
