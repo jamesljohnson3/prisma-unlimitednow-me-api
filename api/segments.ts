@@ -46,16 +46,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           for (const userSegment of userSegments) {
             if (!userSegment.segment) continue; // Skip if segment is null
 
-            const segmentSlug = userSegment.segment?.slug || '';
-
-            // Fetch the related products for this segment, ensuring uniqueness by product id
+            // Fetch the related products for this segment by its productId
             const products = await prisma.product.findMany({
               where: {
-                id: userSegment.segment?.productId || undefined, // Ensure we're only fetching valid product ids
-                OR: [
-                  { slug: { equals: segmentSlug } },
-                  { slug: { contains: segmentSlug.replace(/^\//, '').replace(/\/$/, '') } },
-                ],
+                id: userSegment.segment?.productId || undefined, // Fetch products by productId in the segment
               },
             });
 
@@ -64,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               ...userSegment,
               segment: {
                 ...userSegment.segment,
-                products: [...new Map(products.map(p => [p.id, p])).values()], // Ensure products are unique
+                products: [...new Map(products.map((p: { id: any; }) => [p.id, p])).values()], // Ensure products are unique
               },
             });
           }
