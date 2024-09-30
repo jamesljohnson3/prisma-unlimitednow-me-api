@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Clean the slug by removing the leading/trailing slashes
           const cleanSlug = segmentData.slug.replace(/\//g, '');
 
-          // Step 2: Fetch user segments along with associated products using the cleaned slug
+          // Step 2: Fetch user segments along with associated products
           const userSegments = await prisma.userSegment.findMany({
             where: {
               userId,
@@ -51,11 +51,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(404).json({ message: 'No segments found for the given userId and segmentId' });
           }
 
-          // Step 3: Fetch products where the slug matches the cleaned slug
+          // Step 3: Fetch products where the slug contains the cleaned slug
           const products = await prisma.product.findMany({
             where: {
               slug: {
-                contains: cleanSlug, // Use the cleaned slug
+                contains: cleanSlug, // Correctly using contains here
               },
             },
           });
