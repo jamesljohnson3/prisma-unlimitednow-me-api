@@ -20,27 +20,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     switch (req.method) {
       case 'GET': {
-        // Validate userId
-        if (!userId) {
-          return res.status(400).json({ error: 'userId is required.' });
+        // Validate that userId and segmentId are provided
+        if (!userId || !segmentId) {
+          return res.status(400).json({ message: 'userId and segmentId are required.' });
         }
 
-        // Fetch segments for the user based on userId
-        const userSegments = await prisma.userSegment.findMany({
-          where: { userId }, // Filter by userId
-          include: {
+        // Fetch the slug of the specified segment
+        const segment = await prisma.segment.findUnique({
+          where: { id: segmentId as string },
+          select: { slug: true }, // Only fetch the slug
+        });
+
+        if (!segment) {
+          return res.status(404).json({ message: 'Segment not found.' });
+        }
+
+        // Use the segment slug to filter segments for the user
+        const matchedSegments = await prisma.userSegment.findMany({
+          where: {
+            userId: userId as string, // Filter by userId
             segment: {
-              include: {
-                product: true, // Include related product details
+              slug: {
+                contains: segment.slug, // Match by slug inclusion
               },
             },
           },
-        });
-
-        // If segmentId is provided, filter based on slug match
-        const matchedSegments = userSegments.filter((userSegment: { segment: any; }) => {
-          const segment = userSegment.segment;
-          return segment.slug && segment.slug.includes(segmentId || ''); // Match by slug inclusion
+          include: {
+            segment: true, // Include segment details
+          },
         });
 
         // Return matched segments or a 404 if none are found
@@ -68,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           where: { id },
           data: req.body as Prisma.SegmentUpdateInput,
         });
-        return res.json(updatedSegment);
+        return res.status(200).json(updatedSegment);
       }
 
       case 'DELETE': {
@@ -80,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const deletedSegment = await prisma.segment.delete({
           where: { id: deleteId },
         });
-        return res.json(deletedSegment);
+        return res.status(200).json(deletedSegment);
       }
 
       default:
@@ -88,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch (error: any) {
     console.error('[account] Error responding:', error);
-    return res.status(500).json({ message: error?.message || error });
+    return res.status(500).json({ message: error?.message || 'Internal Server Error' });
   } finally {
     await prisma.$disconnect();
   }
