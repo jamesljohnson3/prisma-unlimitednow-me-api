@@ -43,15 +43,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
           });
 
-          // Ensure we have valid user segments and return the result
+          // Ensure we have valid user segments and filter out duplicates
           const filteredSegments = userSegments.map((userSegment: { segment: { product: any } }) => {
             const products = userSegment.segment?.product ? [userSegment.segment.product] : [];
+
+            // Use a Set to remove duplicate products based on their id
+            const uniqueProducts = Array.from(new Set(products.map(product => product.id)))
+              .map(id => products.find(product => product.id === id));
 
             return {
               ...userSegment,
               segment: {
                 ...userSegment.segment,
-                products, // Filtered products based on the relationship
+                products: uniqueProducts, // Unique products based on their ID
               },
             };
           });
