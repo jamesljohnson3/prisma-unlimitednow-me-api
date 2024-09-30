@@ -43,23 +43,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
           });
 
-          // Ensure we have valid user segments and remove duplicate products
-          const filteredSegments = userSegments.map((userSegment: { segment: { product: any } }) => {
-            const products = userSegment.segment?.product ? [userSegment.segment.product] : [];
+          // Create a map to store unique segment-product pairs
+          const segmentMap: Record<string, any> = {};
 
-            // Remove duplicate products by using a Set
-            const uniqueProducts = Array.from(
-              new Set(products.map(product => product.id))
-            ).map(id => products.find(product => product?.id === id));
+          // Process and deduplicate segments and products
+          userSegments.forEach((userSegment: { segment: any }) => {
+            const segment = userSegment.segment;
+            if (!segment) return;
 
-            return {
-              ...userSegment,
-              segment: {
-                ...userSegment.segment,
-                products: uniqueProducts, // Deduplicated products
-              },
-            };
+            const segmentKey = segment.id; // Use segment id as the key
+            if (!segmentMap[segmentKey]) {
+              segmentMap[segmentKey] = {
+                ...userSegment,
+                segment: {
+                  ...segment,
+                  products: [],
+                },
+              };
+            }
+
+            // Add the product if it exists and ensure no duplicates
+            if (segment.product && !segmentMap[segmentKey].segment.products.some(p => p.id === segment.product.id)) {
+              segmentMap[segmentKey].segment.products.push(segment.product);
+            }
           });
+
+          // Convert map back to an array
+          const filteredSegments = Object.values(segmentMap);
 
           return res.json(filteredSegments);
         } else {
