@@ -23,33 +23,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (req.method) {
       case 'GET': {
         if (userId && segmentId) {
-          // Step 1: Fetch the segment and its slug
-          const segmentData = await prisma.segment.findUnique({
-            where: { id: segmentId },
-            select: { slug: true }, // Fetch only the slug
-          });
-
-          if (!segmentData) {
-            return res.status(404).json({ message: 'Segment not found' });
-          }
-
-          // Clean the slug by removing leading/trailing slashes
-          const cleanSlug = segmentData.slug?.replace(/\//g, '') || '';
-
-          // Step 2: Fetch user segments that match the cleaned slug
+          // Fetch user segments with associated products where the slug matches the cleaned slug
           const userSegments = await prisma.userSegment.findMany({
             where: {
               userId,
-              segment: {
-                slug: {
-                  contains: cleanSlug, // Match the cleaned slug
-                },
-              },
+              segmentId,
             },
             include: {
               segment: {
                 include: {
-                  product: true, // Include the associated product data
+                  product: {
+                    where: {
+                      slug: {
+                        contains: segmentId.replace(/\//g, ''), // Cleaned slug matching
+                      },
+                    },
+                  },
                 },
               },
             },
