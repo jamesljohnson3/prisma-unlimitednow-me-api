@@ -1,16 +1,16 @@
-import { PrismaClient, Prisma } from '@prisma/client'
-import { VercelRequest, VercelResponse } from '@vercel/node'
+import { PrismaClient, Prisma } from '@prisma/client';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 
 type VercelRequestQuery = {
-  userId?: string
-  segmentId?: string
-}
+  userId?: string;
+  segmentId?: string;
+};
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    const { userId, segmentId } = req.query as VercelRequestQuery
+    const { userId, segmentId } = req.query as VercelRequestQuery;
 
     console.log(
       '[account] Incoming request:',
@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         null,
         2,
       ),
-    )
+    );
 
     switch (req.method) {
       case 'GET':
@@ -43,33 +43,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
           });
 
-          // Ensure we have valid user segments and remove duplicate segments and products
-          const uniqueSegmentsMap = new Map(); // Deduplicate segments
-          userSegments.forEach((userSegment: { segment: any }) => {
+          // Deduplicate segments and products
+          const uniqueSegments = new Map<string, any>(); // Store unique segments by segmentId
+          userSegments.forEach((userSegment: { segment: any; }) => {
             const segment = userSegment.segment;
-            if (segment && !uniqueSegmentsMap.has(segment.id)) {
-              // Handle product deduplication within each segment
-              const uniqueProductsMap = new Map();
-              const products = segment.product ? [segment.product] : [];
+            if (segment) {
+              // If the segment doesn't exist in the map, add it
+              if (!uniqueSegments.has(segment.id)) {
+                const uniqueProducts = new Map<string, any>(); // Store unique products by productId
+                const products = segment.product ? [segment.product] : [];
 
-              products.forEach(product => {
-                if (product && !uniqueProductsMap.has(product.id)) {
-                  uniqueProductsMap.set(product.id, product);
-                }
-              });
+                products.forEach(product => {
+                  if (product && !uniqueProducts.has(product.id)) {
+                    uniqueProducts.set(product.id, product);
+                  }
+                });
 
-              // Update segment with deduplicated products
-              uniqueSegmentsMap.set(segment.id, {
-                ...userSegment,
-                segment: {
-                  ...segment,
-                  products: Array.from(uniqueProductsMap.values()), // Deduplicated products
-                },
-              });
+                // Add the unique segment with its unique products to the map
+                uniqueSegments.set(segment.id, {
+                  ...userSegment,
+                  segment: {
+                    ...segment,
+                    products: Array.from(uniqueProducts.values()), // Only unique products
+                  },
+                });
+              }
             }
           });
 
-          const filteredSegments = Array.from(uniqueSegmentsMap.values());
+          // Convert the map back to an array of unique segments
+          const filteredSegments = Array.from(uniqueSegments.values());
 
           return res.json(filteredSegments);
         } else {
@@ -79,39 +82,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'POST':
         const createdSegment = await prisma.segment.create({
           data: req.body as Prisma.SegmentCreateInput,
-        })
-        return res.status(201).json(createdSegment)
+        });
+        return res.status(201).json(createdSegment);
 
       case 'PUT':
-        const { id } = req.body
+        const { id } = req.body;
         if (id) {
           const updatedSegment = await prisma.segment.update({
             where: { id },
             data: req.body as Prisma.SegmentUpdateInput,
-          })
-          return res.json(updatedSegment)
+          });
+          return res.json(updatedSegment);
         } else {
-          return res.status(400).json({ message: 'Missing id for updating segment' })
+          return res.status(400).json({ message: 'Missing id for updating segment' });
         }
 
       case 'DELETE':
-        const deleteId = req.body.id
+        const deleteId = req.body.id;
         if (deleteId) {
           const deletedSegment = await prisma.segment.delete({
             where: { id: deleteId },
-          })
-          return res.json(deletedSegment)
+          });
+          return res.json(deletedSegment);
         } else {
-          return res.status(400).json({ message: 'Missing id for deleting segment' })
+          return res.status(400).json({ message: 'Missing id for deleting segment' });
         }
 
       default:
-        return res.status(405).json({ message: `Method ${req.method} not allowed` })
+        return res.status(405).json({ message: `Method ${req.method} not allowed` });
     }
   } catch (e: any) {
-    console.error('[account] Error responding:', e)
-    return res.status(500).json({ message: e?.message || e })
+    console.error('[account] Error responding:', e);
+    return res.status(500).json({ message: e?.message || e });
   } finally {
-    await prisma.$disconnect()
+    await prisma.$disconnect();
   }
 }
