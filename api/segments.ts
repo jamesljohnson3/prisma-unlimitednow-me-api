@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             include: {
               segment: {
                 include: {
-                  product: true, // Include related product data
+                  product: true, // Include related products
                 },
               },
             },
@@ -45,19 +45,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           // Ensure we have valid user segments and remove duplicate products
           const filteredSegments = userSegments.map((userSegment: { segment: { product: any } }) => {
+            // Get the product associated with the segment
             const products = userSegment.segment?.product ? [userSegment.segment.product] : [];
 
-            // Remove duplicate products by using product IDs
-            const uniqueProducts = products.filter(
-              (product, index, self) =>
-                index === self.findIndex((p) => p.id === product.id)
+            // Use a Set to ensure unique products based on product.id
+            const uniqueProducts = Array.from(
+              new Map(products.map(product => [product.id, product])).values()
             );
 
             return {
               ...userSegment,
               segment: {
                 ...userSegment.segment,
-                products: uniqueProducts, // Ensuring only unique products
+                products: uniqueProducts, // Deduplicated products based on ID
               },
             };
           });
