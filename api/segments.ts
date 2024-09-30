@@ -23,37 +23,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (req.method) {
       case 'GET': {
         if (userId && segmentId) {
-          // Fetch the segment to retrieve its slug
+          // Step 1: Fetch the segment and its slug
           const segmentData = await prisma.segment.findUnique({
             where: { id: segmentId },
-            select: { slug: true },
+            select: { slug: true }, // Fetch only the slug
           });
 
           if (!segmentData) {
             return res.status(404).json({ message: 'Segment not found' });
           }
 
-          // Remove leading and trailing slashes from the slug for matching
+          // Clean the slug by removing the leading/trailing slashes
           const cleanSlug = segmentData.slug.replace(/\//g, '');
 
-          // Fetch user segments with associated products where the slug matches dynamically
+          // Step 2: Fetch user segments along with associated products using the cleaned slug
           const userSegments = await prisma.userSegment.findMany({
             where: {
               userId,
               segmentId,
             },
             include: {
-              segment: {
-                include: {
-                  product: {
-                    where: {
-                      slug: {
-                        contains: cleanSlug, // Use the cleaned slug
-                      },
-                    },
-                  },
-                },
-              },
+              segment: true, // Include the segment data
             },
           });
 
@@ -61,7 +51,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(404).json({ message: 'No segments found for the given userId and segmentId' });
           }
 
-          return res.json(userSegments);
+          // Step 3: Fetch products where the slug matches the cleaned slug
+          const products = await prisma.product.findMany({
+            where: {
+              slug: {
+                contains: cleanSlug, // Use the cleaned slug
+              },
+            },
+          });
+
+          // Combine the user segments with their related products
+          const result = userSegments.map((userSegment: any) => ({
+            ...userSegment,
+            products,
+          }));
+
+          return res.json(result);
         } else {
           return res.status(400).json({ message: 'Missing userId or segmentId for fetching segments' });
         }
