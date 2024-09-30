@@ -3,7 +3,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node'
 
 type VercelRequestQuery = {
   userId?: string
-  segmentId?: string
+  segmentId?:string
 }
 
 const prisma = new PrismaClient()
@@ -25,55 +25,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ),
     )
 
-    switch (req.method) {
+     switch (req.method) {
       case 'GET':
         if (userId && segmentId) {
-          // Fetch user segments that match the provided userId and segmentId
+          // Fetch user segments including all segment fields and related product data
           const userSegments = await prisma.userSegment.findMany({
             where: {
-              userId: userId as string,
-              segmentId: segmentId as string,
+              userId: userId as string,  // Ensure it matches the provided userId
+              segmentId: segmentId as string,  // Find by segmentId
             },
             include: {
               segment: {
                 include: {
-                  product: true, // Include related products
+                  product: true, // Include all fields from the Product model
                 },
               },
             },
           });
 
-          // Create a map to store unique segment-product pairs
-          const segmentMap: Record<string, any> = {};
-
-          // Process and deduplicate segments and products
-          userSegments.forEach((userSegment: { segment: any }) => {
-            const segment = userSegment.segment;
-            if (!segment) return;
-
-            const segmentKey = segment.id; // Use segment id as the key
-            if (!segmentMap[segmentKey]) {
-              segmentMap[segmentKey] = {
-                ...userSegment,
-                segment: {
-                  ...segment,
-                  products: [],
-                },
-              };
-            }
-
-            // Add the product if it exists and ensure no duplicates
-            if (segment.product && !segmentMap[segmentKey].segment.products.some(p => p.id === segment.product.id)) {
-              segmentMap[segmentKey].segment.products.push(segment.product);
-            }
-          });
-
-          // Convert map back to an array
-          const filteredSegments = Object.values(segmentMap);
-
-          return res.json(filteredSegments);
+          return res.json(userSegments)
         } else {
-          return res.status(400).json({ message: 'Missing userId or segmentId for fetching segments' });
+          return res.status(400).json({ message: 'Missing userId for fetching segments' })
         }
 
       case 'POST':
