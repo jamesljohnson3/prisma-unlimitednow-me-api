@@ -46,8 +46,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
           },
           include: {
-            segment: true, // Include segment details
-            product: true, // Include all fields from the Product model
+            segment: {
+              include: {
+                product: true, // Include all fields from the Product model
+              },
+            },
           },
         });
 
@@ -60,6 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       case 'POST': {
+        // Create a new segment using the request body
         const createdSegment = await prisma.segment.create({
           data: req.body as Prisma.SegmentCreateInput,
         });
@@ -72,6 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(400).json({ message: 'Missing id for updating segment' });
         }
 
+        // Update the segment based on the provided id and body data
         const updatedSegment = await prisma.segment.update({
           where: { id },
           data: req.body as Prisma.SegmentUpdateInput,
@@ -85,6 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(400).json({ message: 'Missing id for deleting segment' });
         }
 
+        // Delete the segment based on the provided id
         const deletedSegment = await prisma.segment.delete({
           where: { id: deleteId },
         });
@@ -98,6 +104,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[account] Error responding:', error);
     return res.status(500).json({ message: error?.message || 'Internal Server Error' });
   } finally {
-    await prisma.$disconnect();
+    await prisma.$disconnect(); // Ensure the Prisma client disconnects
   }
 }
