@@ -47,6 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
           include: {
             segment: true, // Include segment details
+            product: true, // Include all fields from the Product model
           },
         });
 
