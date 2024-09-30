@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (req.method) {
       case 'GET': {
         if (userId && segmentId) {
-          // Fetch the user segments based on userId
+          // Fetch user segments based on userId
           const userSegments = await prisma.userSegment.findMany({
             where: {
               userId,
@@ -36,29 +36,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Filter user segments to find the matching segment by segmentId
           const matchedSegment = userSegments.find((us: { segmentId: string; }) => us.segmentId === segmentId);
 
-          // If a matching segment is found, return it
+          // If a matching segment is found, check the slug
           if (matchedSegment) {
-            // Fetch product details for this segment
-            const segmentWithProduct = await prisma.segment.findUnique({
+            // Get the cleaned slug
+            const cleanSlug = matchedSegment.segment.slug?.replace(/\//g, ''); // Example cleaning logic
+
+            // Fetch the segment by segmentId and include the products
+            const segmentWithProducts = await prisma.segment.findUnique({
               where: {
                 id: segmentId,
               },
               include: {
-                product: true, // Include product data associated with this segment
+                product: true, // Include products associated with this segment
               },
             });
 
-            if (!segmentWithProduct) {
-              return res.status(404).json({ message: 'No segment found with the provided segmentId' });
+            // Check if the segment matches the cleaned slug
+            if (segmentWithProducts && segmentWithProducts.slug?.replace(/\//g, '') === cleanSlug) {
+              return res.json(segmentWithProducts); // Return the matching segment with products
+            } else {
+              return res.status(404).json({ message: 'No matching segment found with the cleaned slug' });
             }
-
-            return res.json({
-              ...matchedSegment,
-              segment: {
-                ...matchedSegment.segment,
-                product: segmentWithProduct.product, // Include product details
-              },
-            });
           } else {
             return res.status(404).json({ message: 'No matching segments found for the given userId and segmentId' });
           }
@@ -67,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
+      // Handling other methods (POST, PUT, DELETE)
       case 'POST': {
         const createdSegment = await prisma.segment.create({
           data: req.body as Prisma.SegmentCreateInput,
